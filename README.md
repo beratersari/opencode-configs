@@ -40,9 +40,11 @@ only adds files.
 
 ## CI artifacts
 
-Push to `main` uploads `opencode-configs-windows.zip` and
-`opencode-configs-linux.zip`. Each zip has `agents/`, `skills/`, and
-the install scripts.
+Push to `main` uploads versioned zips, for example
+`opencode-configs-1.18.10-windows.zip` and
+`opencode-configs-1.18.10-linux.zip` (`OPENCODE_VERSION` in
+`packaging/versions.env`). Each zip has `agents/`, `skills/`, and the
+install scripts.
 
 ## Use in another repo
 

@@ -30,6 +30,20 @@ class Artifact(unittest.TestCase):
         self.assertIn("install.py", names)
         self.assertIn("install.bat", names)
         self.assertIn("install.sh", names)
+        self.assertIn("packaging/versions.env", names)
+
+    def test_artifact_name_includes_opencode_version(self) -> None:
+        mod = _load_builder()
+        version = mod.read_opencode_version(ROOT)
+        self.assertEqual(version, "1.18.10")
+        self.assertEqual(
+            mod.artifact_name(version, "linux"),
+            "opencode-configs-1.18.10-linux.zip",
+        )
+        self.assertEqual(
+            mod.artifact_name(version, "windows"),
+            "opencode-configs-1.18.10-windows.zip",
+        )
 
 
 if __name__ == "__main__":

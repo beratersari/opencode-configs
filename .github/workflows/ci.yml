@@ -61,11 +61,11 @@ jobs:
           print("path-after-install", parts)
           PY
       - name: Build Linux artifact
-        run: python packaging/build_artifact.py --out dist/opencode-configs-linux.zip
+        run: python packaging/build_artifact.py --os linux --out-dir dist
       - uses: actions/upload-artifact@v4
         with:
           name: opencode-configs-linux
-          path: dist/opencode-configs-linux.zip
+          path: dist/opencode-configs-*-linux.zip
           if-no-files-found: error
           retention-days: 30
 
@@ -124,10 +124,10 @@ jobs:
           print('path-after-install', parts)
           "@
       - name: Build Windows artifact
-        run: python packaging/build_artifact.py --out dist/opencode-configs-windows.zip
+        run: python packaging/build_artifact.py --os windows --out-dir dist
       - uses: actions/upload-artifact@v4
         with:
           name: opencode-configs-windows
-          path: dist/opencode-configs-windows.zip
+          path: dist/opencode-configs-*-windows.zip
           if-no-files-found: error
           retention-days: 30

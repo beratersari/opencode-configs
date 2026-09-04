@@ -14,7 +14,27 @@ INCLUDE = (
     "install.sh",
     "agents",
     "skills",
+    "packaging/versions.env",
 )
+
+
+def read_opencode_version(root: Path) -> str:
+    path = Path(root) / "packaging" / "versions.env"
+    if not path.is_file():
+        raise SystemExit(f"missing {path}")
+    for raw in path.read_text(encoding="utf-8").splitlines():
+        line = raw.strip()
+        if line.startswith("OPENCODE_VERSION="):
+            version = line.split("=", 1)[1].strip()
+            if version:
+                return version
+    raise SystemExit(f"OPENCODE_VERSION missing in {path}")
+
+
+def artifact_name(version: str, os_tag: str) -> str:
+    safe = "".join(ch if ch.isalnum() or ch in "._-" else "_" for ch in version)
+    tag = os_tag.strip().lower()
+    return f"opencode-configs-{safe}-{tag}.zip"
 
 
 def build(root: Path, dest: Path) -> Path:
@@ -40,9 +60,17 @@ def build(root: Path, dest: Path) -> Path:
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--root", default=".")
-    parser.add_argument("--out", required=True)
+    parser.add_argument("--os", choices=("linux", "windows"), default="")
+    parser.add_argument("--out", default="", help="Full zip path. Default: dist/opencode-configs-<version>-<os>.zip")
+    parser.add_argument("--out-dir", default="dist")
     args = parser.parse_args()
-    path = build(Path(args.root), Path(args.out))
+    root = Path(args.root)
+    if args.out:
+        dest = Path(args.out)
+    else:
+        os_tag = args.os or ("windows" if __import__("os").name == "nt" else "linux")
+        dest = Path(args.out_dir) / artifact_name(read_opencode_version(root), os_tag)
+    path = build(root, dest)
     print(path.resolve())
     return 0
 
