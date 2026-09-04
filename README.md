@@ -14,8 +14,31 @@ skills/           # -> ~/.config/opencode/skills/<name>/SKILL.md
 ```
 
 Add a new agent by dropping `agents/<name>.md`. Add a skill as
-`skills/<name>/SKILL.md`. The Creasy installer copies every file it
-finds; it does not hard-code the review agent.
+`skills/<name>/SKILL.md`. Installers copy every file they find.
+
+## Replace install (this repo)
+
+`install.py` **deletes** the previous OpenCode home and **removes**
+every `…/.opencode/bin` entry from the user PATH, then writes a clean
+copy of this pack. Deleting the folder alone is not enough: a stale
+PATH entry would still point at the old bin.
+
+```bash
+python install.py --root .
+# or, after unpacking a CI zip:
+install.bat
+./install.sh
+```
+
+Windows: user PATH in `HKCU\Environment`. Linux: `PATH` plus a marked
+block in `~/.profile`. Creasy's own installer does **not** do this; it
+only adds files.
+
+## CI artifacts
+
+Push to `main` uploads `opencode-configs-windows.zip` and
+`opencode-configs-linux.zip`. Each zip has `agents/`, `skills/`, and
+the install scripts.
 
 ## Use in another repo
 
@@ -23,7 +46,3 @@ finds; it does not hard-code the review agent.
 git submodule add https://github.com/beratersari/opencode-configs.git opencode-configs
 git submodule update --init --recursive
 ```
-
-Then copy or install `agents/` and `skills/` into the OpenCode home
-your process uses (`~/.config/opencode` and, if that home exists,
-`~/.opencode`).

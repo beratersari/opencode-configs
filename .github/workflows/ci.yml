@@ -1,0 +1,115 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  linux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+      - name: Unittest
+        run: python -m unittest discover -s tests -t .
+      - name: Wipe old OpenCode home and PATH, then install
+        run: |
+          set -euo pipefail
+          CI_HOME="${RUNNER_TEMP}/oc-home"
+          mkdir -p "$CI_HOME/.opencode/bin" "$CI_HOME/.config/opencode/agents"
+          echo old-binary > "$CI_HOME/.opencode/bin/opencode"
+          echo leftover > "$CI_HOME/.opencode/old.txt"
+          echo stale > "$CI_HOME/.config/opencode/agents/stale.md"
+          python - <<PY
+          import install
+          from pathlib import Path
+          home = Path(r"${CI_HOME}")
+          install.write_user_path(
+              [str(home / ".opencode" / "bin"), str(home / "keep-on-path")],
+              None,
+              user_home=home,
+          )
+          PY
+          python install.py --root "$PWD" --user-home "$CI_HOME"
+          test ! -f "$CI_HOME/.opencode/old.txt"
+          test ! -f "$CI_HOME/.config/opencode/agents/stale.md"
+          test -f "$CI_HOME/.config/opencode/agents/review.md"
+          test -f "$CI_HOME/.opencode/skills/cpp98/SKILL.md"
+          python - <<PY
+          import install
+          from pathlib import Path
+          home = Path(r"${CI_HOME}")
+          parts, handle = install.read_user_path(user_home=home)
+          install.close_path_handle(handle, user_home=home)
+          bins = [p for p in parts if install.is_opencode_bin_entry(p)]
+          assert len(bins) == 1, parts
+          assert any(p.endswith("keep-on-path") or p.endswith("keep-on-path") for p in parts)
+          print("path-after-install", parts)
+          PY
+      - name: Build Linux artifact
+        run: python packaging/build_artifact.py --out dist/opencode-configs-linux.zip
+      - uses: actions/upload-artifact@v4
+        with:
+          name: opencode-configs-linux
+          path: dist/opencode-configs-linux.zip
+          if-no-files-found: error
+          retention-days: 30
+
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+      - name: Unittest
+        run: python -m unittest discover -s tests -t .
+      - name: Wipe old OpenCode home and PATH, then install
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $ciHome = Join-Path $env:RUNNER_TEMP "oc-home"
+          New-Item -ItemType Directory -Force -Path (Join-Path $ciHome ".opencode\bin") | Out-Null
+          New-Item -ItemType Directory -Force -Path (Join-Path $ciHome ".config\opencode\agents") | Out-Null
+          Set-Content -Path (Join-Path $ciHome ".opencode\bin\opencode.exe") -Value "old-binary"
+          Set-Content -Path (Join-Path $ciHome ".opencode\old.txt") -Value "leftover"
+          Set-Content -Path (Join-Path $ciHome ".config\opencode\agents\stale.md") -Value "stale"
+          python -c @"
+          import install
+          from pathlib import Path
+          home = Path(r'$ciHome')
+          install.write_user_path(
+              [str(home / '.opencode' / 'bin'), str(home / 'keep-on-path')],
+              None,
+              user_home=home,
+          )
+          "@
+          python install.py --root $PWD --user-home $ciHome
+          if (Test-Path (Join-Path $ciHome ".opencode\old.txt")) { throw "old tree still present" }
+          if (Test-Path (Join-Path $ciHome ".config\opencode\agents\stale.md")) { throw "stale agent still present" }
+          if (-not (Test-Path (Join-Path $ciHome ".config\opencode\agents\review.md"))) { throw "review agent missing" }
+          python -c @"
+          import install
+          from pathlib import Path
+          home = Path(r'$ciHome')
+          parts, handle = install.read_user_path(user_home=home)
+          install.close_path_handle(handle, user_home=home)
+          bins = [p for p in parts if install.is_opencode_bin_entry(p)]
+          assert len(bins) == 1, parts
+          assert any(Path(p).name == 'keep-on-path' for p in parts), parts
+          print('path-after-install', parts)
+          "@
+      - name: Build Windows artifact
+        run: python packaging/build_artifact.py --out dist/opencode-configs-windows.zip
+      - uses: actions/upload-artifact@v4
+        with:
+          name: opencode-configs-windows
+          path: dist/opencode-configs-windows.zip
+          if-no-files-found: error
+          retention-days: 30
