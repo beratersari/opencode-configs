@@ -118,7 +118,7 @@ class ReplaceInstall(unittest.TestCase):
         install.install(pack, user_home=home)
         self.assertTrue((home / ".config" / "opencode" / "agents" / "extra.md").is_file())
 
-    def test_custom_location_removed_from_disk_and_path(self) -> None:
+    def test_custom_location_kept_on_disk_removed_from_path(self) -> None:
         import tempfile
         import shutil
 
@@ -135,13 +135,13 @@ class ReplaceInstall(unittest.TestCase):
             encoding="utf-8",
         )
         install.install(ROOT, user_home=home)
-        self.assertFalse((tmp / "apps" / "opencode").exists())
+        self.assertTrue((custom / "opencode.exe").is_file())
         path = install.split_path((home / ".opencode-path").read_text(encoding="utf-8"))
         self.assertNotIn(str(custom), path)
         self.assertIn(str(keep), path)
         self.assertTrue((home / ".config" / "opencode" / "agents" / "review.md").is_file())
 
-    def test_shared_bin_keeps_path_and_other_tools(self) -> None:
+    def test_shared_bin_files_kept_path_unhooked(self) -> None:
         import tempfile
         import shutil
 
@@ -155,10 +155,10 @@ class ReplaceInstall(unittest.TestCase):
         (home / ".opencode-path").parent.mkdir(parents=True)
         (home / ".opencode-path").write_text(str(tools), encoding="utf-8")
         install.install(ROOT, user_home=home)
-        self.assertFalse((tools / "opencode.exe").exists())
+        self.assertTrue((tools / "opencode.exe").is_file())
         self.assertTrue((tools / "git.exe").exists())
         path = install.split_path((home / ".opencode-path").read_text(encoding="utf-8"))
-        self.assertIn(str(tools), path)
+        self.assertNotIn(str(tools), path)
 
 
 if __name__ == "__main__":

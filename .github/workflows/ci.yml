@@ -42,18 +42,20 @@ jobs:
           python install.py --root "$PWD" --user-home "$CI_HOME"
           test ! -f "$CI_HOME/.opencode/old.txt"
           test ! -f "$CI_HOME/.config/opencode/agents/stale.md"
-          test ! -e "${RUNNER_TEMP}/apps/opencode"
+          test -f "${CUSTOM}/opencode"
           test -f "$CI_HOME/.config/opencode/agents/review.md"
           test -f "$CI_HOME/.opencode/skills/cpp98/SKILL.md"
           python - <<PY
           import install
           from pathlib import Path
           home = Path(r"${CI_HOME}")
+          custom = Path(r"${CUSTOM}")
           parts, handle = install.read_user_path(user_home=home)
           install.close_path_handle(handle, user_home=home)
+          assert str(custom) not in parts, parts
           bins = [p for p in parts if install.is_opencode_bin_entry(p)]
           assert len(bins) == 1, parts
-          assert any(p.endswith("keep-on-path") or p.endswith("keep-on-path") for p in parts)
+          assert any(Path(p).name == "keep-on-path" for p in parts), parts
           print("path-after-install", parts)
           PY
       - name: Build Linux artifact
@@ -99,7 +101,7 @@ jobs:
           )
           "@
           python install.py --root $PWD --user-home $ciHome
-          if (Test-Path (Join-Path $env:RUNNER_TEMP "apps\opencode")) { throw "custom install still present" }
+          if (-not (Test-Path (Join-Path $custom "opencode.exe"))) { throw "custom install should stay on disk" }
           if (Test-Path (Join-Path $ciHome ".opencode\old.txt")) { throw "old tree still present" }
           if (Test-Path (Join-Path $ciHome ".config\opencode\agents\stale.md")) { throw "stale agent still present" }
           if (-not (Test-Path (Join-Path $ciHome ".config\opencode\agents\review.md"))) { throw "review agent missing" }
@@ -107,8 +109,10 @@ jobs:
           import install
           from pathlib import Path
           home = Path(r'$ciHome')
+          custom = Path(r'$custom')
           parts, handle = install.read_user_path(user_home=home)
           install.close_path_handle(handle, user_home=home)
+          assert str(custom) not in parts, parts
           bins = [p for p in parts if install.is_opencode_bin_entry(p)]
           assert len(bins) == 1, parts
           assert any(Path(p).name == 'keep-on-path' for p in parts), parts

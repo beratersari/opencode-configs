@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """Replace-install this pack into the user OpenCode home.
 
-Unlike Creasy's installer, this one **removes** the previous OpenCode
-home and every matching PATH entry, then writes a clean copy of
-agents/ and skills/.
+Deletes only ~/.opencode and ~/.config/opencode. Any other OpenCode
+copy is left on disk; its directory is dropped from PATH so `opencode`
+does not resolve there. The user can add that path back later.
 """
 
 from __future__ import annotations
@@ -88,14 +88,18 @@ def is_opencode_bin_entry(entry: str) -> bool:
 
 
 def is_protected_dir(path: Path) -> bool:
+    """True for OS dirs we must never strip from PATH or delete."""
     try:
         resolved = path.resolve()
     except OSError:
         return True
     if len(resolved.parts) <= (2 if os.name == "nt" else 1):
         return True
-    names = {part.lower() for part in resolved.parts}
-    if names & PROTECTED_DIR_NAMES and resolved.name.lower() not in DEDICATED_DIR_NAMES:
+    name = resolved.name.lower()
+    if name in {"windows", "system32", "syswow64", "program files", "program files (x86)"}:
+        return True
+    posix = resolved.as_posix().lower()
+    if posix in {"/usr/bin", "/usr/local/bin", "/bin", "/sbin", "/usr/sbin", "/usr/local/sbin"}:
         return True
     return False
 
@@ -324,42 +328,37 @@ def purge_discovered(
     user_home: Path | None = None,
     path_parts: list[str] | None = None,
 ) -> tuple[list[Path], list[str]]:
-    """Delete dedicated OpenCode trees and binaries found on PATH.
+    """Delete only ~/.opencode and ~/.config/opencode.
 
-    Shared tool dirs (for example /usr/local/bin next to git) only lose the
-    opencode files. Their PATH entry stays.
+    Any other OpenCode binary stays on disk. Its directory is returned so
+    PATH can drop it; the user can add that path back later.
     """
     binaries = find_opencode_binaries(user_home=user_home, path_parts=path_parts)
+    default_home = opencode_home(user_home).resolve()
     drop_dirs: list[str] = []
-    removed: list[Path] = []
-    seen_roots: set[str] = set()
+    seen_drop: set[str] = set()
     for binary in binaries:
-        root = dedicated_install_root(binary)
-        if root is not None:
-            key = os.path.normcase(str(root))
-            if key not in seen_roots:
-                seen_roots.add(key)
-                if root.exists():
-                    _safe_rmtree(root)
-                    removed.append(root)
-                    print(f"[OK] Removed install {root}")
-            for directory in path_dirs_for_install(binary):
-                drop_dirs.append(str(directory))
-            continue
         parent = binary.parent
-        if is_protected_dir(parent) or dir_has_other_executables(parent):
-            unlink_binary(binary)
-            print(f"[OK] Left shared PATH dir in place: {parent}")
+        try:
+            if default_home in parent.resolve().parents or parent.resolve() == default_home:
+                continue
+        except OSError:
+            pass
+        if is_protected_dir(parent):
+            print(f"[OK] Left system PATH dir in place: {parent}")
             continue
-        unlink_binary(binary)
-        drop_dirs.append(str(parent))
+        key = os.path.normcase(str(parent))
+        if key not in seen_drop:
+            seen_drop.add(key)
+            drop_dirs.append(str(parent))
+            print(f"[OK] Will unhook PATH dir (files kept): {parent}")
+    removed: list[Path] = []
     for path in (opencode_home(user_home), config_home(user_home)):
-        key = os.path.normcase(str(path.resolve())) if path.exists() else ""
-        if path.exists() and key not in seen_roots:
+        if path.exists():
             _safe_rmtree(path)
             removed.append(path)
             print(f"[OK] Removed {path}")
-        elif not path.exists():
+        else:
             print(f"[OK] Already absent {path}")
     return removed, drop_dirs
 
