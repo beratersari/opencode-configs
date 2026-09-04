@@ -1,17 +1,53 @@
 # OpenCode configs
 
-Shared OpenCode agents and skills. Creasy, and any other project that
-runs the same review agents, consume this tree as a git submodule.
-
-Layout matches what the installer copies into the user OpenCode home:
+Shared OpenCode **agents** and a general **skill library**. Creasy
+ships the `review` agent today; later agents (implement, plan,
+commit) should load the same `skills/` tree. Installers copy every
+`skills/*/SKILL.md`. Each skill says when to load.
 
 ```
 agents/           # -> ~/.config/opencode/agents/<name>.md
-  review.md
+  review.md       # read-only GitLab reviewer (allow-list of skills)
 skills/           # -> ~/.config/opencode/skills/<name>/SKILL.md
-  cpp98/
-  modern-cpp/
 ```
+
+## Skills
+
+C++ is the largest language group. The rest is for any stack.
+
+**C++ dialect:** `cpp98` `modern-cpp`
+
+**C++ specialists:** `cpp-memory-safety` `cpp-concurrency`
+`cpp-exceptions` `cpp-templates` `cpp-headers-odr` `cpp-stl`
+`cpp-numerics` `cpp-preprocessor` `cmake-cpp` `cpp-testing`
+
+**Other languages:** `python` `javascript` `go` `rust` `java`
+`csharp` `shell`
+
+**Security:** `secrets` `web-security` `auth` `security-owasp`
+`cryptography`
+
+**Data / API:** `sql` `rest-api` `graphql` `grpc` `api-compat`
+`caching` `messaging`
+
+**UI:** `frontend-ui` `accessibility` `i18n`
+
+**Infra:** `ci` `docker` `kubernetes` `terraform` `dependencies`
+`networking` `licensing`
+
+**Quality:** `performance` `observability` `privacy-logging`
+`error-handling` `documentation` `testing` `refactoring`
+`root-cause` `verification`
+
+**Implementer-only** (do not allow on `review`): `tdd` `debugging`
+`git-commits` `planning`
+
+Drawn from [oh-my-opencode](https://github.com/code-yeongyu/oh-my-opencode),
+[obra/superpowers](https://github.com/obra/superpowers),
+[addyosmani/agent-skills](https://github.com/addyosmani/agent-skills),
+[anthropics/claude-code-security-review](https://github.com/anthropics/claude-code-security-review),
+[waybarrios/opencode-power-pack](https://github.com/waybarrios/opencode-power-pack).
+Not copied wholesale (no browser/commit bots on the review agent).
 
 Add a new agent by dropping `agents/<name>.md`. Add a skill as
 `skills/<name>/SKILL.md`. Installers copy every file they find.

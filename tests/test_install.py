@@ -53,6 +53,17 @@ class ReplaceInstall(unittest.TestCase):
         self.assertIn("review", agents)
         self.assertIn("cpp98", skills)
         self.assertIn("modern-cpp", skills)
+        self.assertIn("cpp-memory-safety", skills)
+        self.assertIn("cmake-cpp", skills)
+        self.assertIn("secrets", skills)
+        self.assertIn("python", skills)
+        self.assertIn("web-security", skills)
+        self.assertIn("frontend-ui", skills)
+        self.assertIn("security-owasp", skills)
+        self.assertIn("go", skills)
+        self.assertIn("git-commits", skills)
+        self.assertIn("planning", skills)
+        self.assertGreaterEqual(len(skills), 40)
 
     def test_purge_removes_homes_and_path(self) -> None:
         import tempfile
