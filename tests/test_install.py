@@ -50,7 +50,7 @@ class ReplaceInstall(unittest.TestCase):
     def test_lists_shipped_agents_and_skills(self) -> None:
         agents = [p.stem for p in install.list_agent_files(ROOT)]
         skills = [p.name for p in install.list_skill_dirs(ROOT)]
-        self.assertIn("review", agents)
+        self.assertIn("gitlab-reviewer", agents)
         self.assertIn("cpp98", skills)
         self.assertIn("modern-cpp", skills)
         self.assertIn("cpp-memory-safety", skills)
@@ -167,7 +167,7 @@ class ReplaceInstall(unittest.TestCase):
         path = install.split_path((home / ".opencode-path").read_text(encoding="utf-8"))
         self.assertNotIn(str(custom), path)
         self.assertIn(str(keep), path)
-        self.assertTrue((home / ".config" / "opencode" / "agents" / "review.md").is_file())
+        self.assertTrue((home / ".config" / "opencode" / "agents" / "gitlab-reviewer.md").is_file())
 
     def test_shared_bin_files_kept_path_unhooked(self) -> None:
         import tempfile

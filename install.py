@@ -530,9 +530,9 @@ def install(root: Path, *, user_home: Path | None = None) -> Path:
     print("Installing this pack…")
     write_files(root, user_home=user_home)
     prepend_to_path(user_home=user_home)
-    dest = config_home(user_home) / "agents" / "review.md"
+    dest = config_home(user_home) / "agents" / "gitlab-reviewer.md"
     if not dest.is_file():
-        raise FileNotFoundError(f"review agent missing after install: {dest}")
+        raise FileNotFoundError(f"gitlab-reviewer agent missing after install: {dest}")
     return dest
 
 

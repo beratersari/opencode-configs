@@ -7,7 +7,7 @@ commit) should load the same `skills/` tree. Installers copy every
 
 ```
 agents/           # -> ~/.config/opencode/agents/<name>.md
-  review.md       # read-only GitLab reviewer (allow-list of skills)
+  gitlab-reviewer.md  # read-only GitLab reviewer (allow-list of skills)
 skills/           # -> ~/.config/opencode/skills/<name>/SKILL.md
 ```
 
