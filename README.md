@@ -29,7 +29,7 @@ want that copy. System dirs such as `/usr/local/bin` are not stripped.
 
 ```bash
 python install.py --root .
-# or, after unpacking a CI zip:
+# or, after unpacking the GitHub Actions artifact:
 install.bat
 ./install.sh
 ```
@@ -40,11 +40,12 @@ only adds files.
 
 ## CI artifacts
 
-Push to `main` uploads versioned zips, for example
-`opencode-configs-1.18.10-windows.zip` and
-`opencode-configs-1.18.10-linux.zip` (`OPENCODE_VERSION` in
-`packaging/versions.env`). Each zip has `agents/`, `skills/`, and the
-install scripts.
+Push to `main` uploads folders named
+`opencode-configs-1.18.10-windows` and
+`opencode-configs-1.18.10-linux` (`OPENCODE_VERSION` in
+`packaging/versions.env`). GitHub wraps each folder as a zip; the
+download is not a zip of a zip. Each artifact has `agents/`,
+`skills/`, and the install scripts.
 
 ## Use in another repo
 

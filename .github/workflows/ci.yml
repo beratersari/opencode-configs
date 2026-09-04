@@ -60,12 +60,16 @@ jobs:
           assert any(Path(p).name == "keep-on-path" for p in parts), parts
           print("path-after-install", parts)
           PY
-      - name: Build Linux artifact
-        run: python packaging/build_artifact.py --os linux --out-dir dist
+      - name: Stage Linux artifact
+        id: art
+        run: |
+          dest=$(python packaging/build_artifact.py --os linux --out-dir dist)
+          echo "name=$(basename "$dest")" >> "$GITHUB_OUTPUT"
+          echo "dir=$dest" >> "$GITHUB_OUTPUT"
       - uses: actions/upload-artifact@v4
         with:
-          name: opencode-configs-linux
-          path: dist/opencode-configs-*-linux.zip
+          name: ${{ steps.art.outputs.name }}
+          path: ${{ steps.art.outputs.dir }}/
           if-no-files-found: error
           retention-days: 30
 
@@ -123,11 +127,17 @@ jobs:
           assert any(Path(p).name == 'keep-on-path' for p in parts), parts
           print('path-after-install', parts)
           "@
-      - name: Build Windows artifact
-        run: python packaging/build_artifact.py --os windows --out-dir dist
+      - name: Stage Windows artifact
+        id: art
+        shell: pwsh
+        run: |
+          $dest = (python packaging/build_artifact.py --os windows --out-dir dist | Select-Object -Last 1).Trim()
+          $name = Split-Path -Leaf $dest
+          Add-Content -Path $env:GITHUB_OUTPUT -Value "name=$name"
+          Add-Content -Path $env:GITHUB_OUTPUT -Value "dir=$dest"
       - uses: actions/upload-artifact@v4
         with:
-          name: opencode-configs-windows
-          path: dist/opencode-configs-*-windows.zip
+          name: ${{ steps.art.outputs.name }}
+          path: ${{ steps.art.outputs.dir }}/
           if-no-files-found: error
           retention-days: 30

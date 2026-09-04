@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""Zip this pack for Windows or Linux. Stdlib only."""
+"""Stage this pack as a folder. GitHub Actions zips the upload; do not zip here."""
 
 from __future__ import annotations
 
 import argparse
-import zipfile
+import shutil
 from pathlib import Path
 
 INCLUDE = (
@@ -34,26 +34,31 @@ def read_opencode_version(root: Path) -> str:
 def artifact_name(version: str, os_tag: str) -> str:
     safe = "".join(ch if ch.isalnum() or ch in "._-" else "_" for ch in version)
     tag = os_tag.strip().lower()
-    return f"opencode-configs-{safe}-{tag}.zip"
+    return f"opencode-configs-{safe}-{tag}"
 
 
-def build(root: Path, dest: Path) -> Path:
+def stage(root: Path, dest: Path) -> Path:
     root = root.resolve()
-    dest.parent.mkdir(parents=True, exist_ok=True)
+    if dest.exists():
+        shutil.rmtree(dest)
+    dest.mkdir(parents=True)
     review = root / "agents" / "review.md"
     if not review.is_file():
         raise SystemExit(f"missing {review}")
-    with zipfile.ZipFile(dest, "w", compression=zipfile.ZIP_DEFLATED) as zf:
-        for name in INCLUDE:
-            src = root / name
-            if src.is_file():
-                zf.write(src, name)
-                continue
-            if not src.is_dir():
-                raise SystemExit(f"missing {src}")
-            for path in src.rglob("*"):
-                if path.is_file() and ".git" not in path.parts:
-                    zf.write(path, path.relative_to(root).as_posix())
+    for name in INCLUDE:
+        src = root / name
+        if src.is_file():
+            target = dest / name
+            target.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(src, target)
+            continue
+        if not src.is_dir():
+            raise SystemExit(f"missing {src}")
+        for path in src.rglob("*"):
+            if path.is_file() and ".git" not in path.parts:
+                target = dest / path.relative_to(root)
+                target.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(path, target)
     return dest
 
 
@@ -61,7 +66,11 @@ def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--root", default=".")
     parser.add_argument("--os", choices=("linux", "windows"), default="")
-    parser.add_argument("--out", default="", help="Full zip path. Default: dist/opencode-configs-<version>-<os>.zip")
+    parser.add_argument(
+        "--out",
+        default="",
+        help="Full folder path. Default: dist/opencode-configs-<version>-<os>/",
+    )
     parser.add_argument("--out-dir", default="dist")
     args = parser.parse_args()
     root = Path(args.root)
@@ -70,7 +79,7 @@ def main() -> int:
     else:
         os_tag = args.os or ("windows" if __import__("os").name == "nt" else "linux")
         dest = Path(args.out_dir) / artifact_name(read_opencode_version(root), os_tag)
-    path = build(root, dest)
+    path = stage(root, dest)
     print(path.resolve())
     return 0
 
