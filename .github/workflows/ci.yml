@@ -43,6 +43,8 @@ jobs:
           test ! -f "$CI_HOME/.opencode/old.txt"
           test ! -f "$CI_HOME/.config/opencode/agents/stale.md"
           test -f "${CUSTOM}/opencode"
+          backup=$(ls -d "$CI_HOME"/.opencode_backup_* | head -1)
+          test -f "$backup/old.txt"
           test -f "$CI_HOME/.config/opencode/agents/review.md"
           test -f "$CI_HOME/.opencode/skills/cpp98/SKILL.md"
           python - <<PY
@@ -103,6 +105,9 @@ jobs:
           python install.py --root $PWD --user-home $ciHome
           if (-not (Test-Path (Join-Path $custom "opencode.exe"))) { throw "custom install should stay on disk" }
           if (Test-Path (Join-Path $ciHome ".opencode\old.txt")) { throw "old tree still present" }
+          $backup = Get-ChildItem -Path $ciHome -Directory -Filter ".opencode_backup_*" | Select-Object -First 1
+          if (-not $backup) { throw "expected .opencode_backup_*" }
+          if (-not (Test-Path (Join-Path $backup.FullName "old.txt"))) { throw "backup missing old.txt" }
           if (Test-Path (Join-Path $ciHome ".config\opencode\agents\stale.md")) { throw "stale agent still present" }
           if (-not (Test-Path (Join-Path $ciHome ".config\opencode\agents\review.md"))) { throw "review agent missing" }
           python -c @"

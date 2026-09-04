@@ -81,6 +81,12 @@ class ReplaceInstall(unittest.TestCase):
         install.purge_homes(tmp)
         self.assertFalse(oc.exists())
         self.assertFalse(cfg.exists())
+        backups = list(tmp.glob(".opencode_backup_*"))
+        self.assertEqual(len(backups), 1)
+        self.assertTrue((backups[0] / "bin" / "old.exe").is_file())
+        cfg_backups = list((tmp / ".config").glob("opencode_backup_*"))
+        self.assertEqual(len(cfg_backups), 1)
+        self.assertTrue((cfg_backups[0] / "agents" / "stale.md").is_file())
 
     def test_install_replaces_old_tree(self) -> None:
         import tempfile
@@ -97,6 +103,9 @@ class ReplaceInstall(unittest.TestCase):
         dest = install.install(ROOT, user_home=tmp)
         self.assertTrue(dest.is_file())
         self.assertFalse(old.exists())
+        backups = list(tmp.glob(".opencode_backup_*"))
+        self.assertEqual(len(backups), 1)
+        self.assertTrue((backups[0] / "keep-old.txt").is_file())
         self.assertIn("mode: primary", dest.read_text(encoding="utf-8"))
         self.assertTrue((tmp / ".opencode" / "skills" / "cpp98" / "SKILL.md").is_file())
         self.assertTrue((tmp / ".config" / "opencode" / "opencode.json").is_file())
@@ -104,6 +113,14 @@ class ReplaceInstall(unittest.TestCase):
         self.assertTrue(path)
         self.assertTrue(install.is_opencode_bin_entry(path[0]))
         self.assertEqual(len([p for p in path if install.is_opencode_bin_entry(p)]), 1)
+
+    def test_backup_destination_uses_timestamp(self) -> None:
+        from datetime import datetime
+
+        dest = install.backup_destination(
+            Path("/tmp/.opencode"), when=datetime(2026, 9, 4, 15, 30, 45)
+        )
+        self.assertEqual(dest.name, ".opencode_backup_20260904_153045")
 
     def test_install_picks_up_new_agent_file(self) -> None:
         import tempfile

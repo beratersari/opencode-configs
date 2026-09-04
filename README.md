@@ -18,12 +18,14 @@ Add a new agent by dropping `agents/<name>.md`. Add a skill as
 
 ## Replace install (this repo)
 
-`install.py` deletes **only** `~/.opencode` and `~/.config/opencode`.
-If another OpenCode exists (another folder on PATH, or
+`install.py` **renames** `~/.opencode` to
+`~/.opencode_backup_YYYYMMDD_HHMMSS` (and `~/.config/opencode` to
+`~/.config/opencode_backup_YYYYMMDD_HHMMSS`). It does not delete those
+trees. If another OpenCode exists (another folder on PATH, or
 `OPENCODE_HOME` / `OPENCODE_INSTALL` / `OPENCODE_BIN`), those files
-stay. That directory is removed from the user PATH so `opencode` does
-not resolve there. Put the old path back if you still want that copy.
-System dirs such as `/usr/local/bin` are not stripped.
+stay where they are. That directory is removed from the user PATH so
+`opencode` does not resolve there. Put the old path back if you still
+want that copy. System dirs such as `/usr/local/bin` are not stripped.
 
 ```bash
 python install.py --root .

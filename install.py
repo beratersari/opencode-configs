@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """Replace-install this pack into the user OpenCode home.
 
-Deletes only ~/.opencode and ~/.config/opencode. Any other OpenCode
-copy is left on disk; its directory is dropped from PATH so `opencode`
-does not resolve there. The user can add that path back later.
+Renames ~/.opencode to ~/.opencode_backup_YYYYMMDD_HHMMSS (same for
+~/.config/opencode). Any other OpenCode copy is left in place; its
+directory is dropped from PATH so `opencode` does not resolve there.
 """
 
 from __future__ import annotations
@@ -13,6 +13,7 @@ import os
 import shutil
 import sys
 import time
+from datetime import datetime
 from pathlib import Path
 
 STOCK_CONFIG = """{
@@ -303,24 +304,38 @@ def list_skill_dirs(root: Path) -> list[Path]:
     return dirs
 
 
-def _safe_rmtree(path: Path) -> None:
+def backup_destination(path: Path, when: datetime | None = None) -> Path:
+    stamp = (when or datetime.now()).strftime("%Y%m%d_%H%M%S")
+    dest = path.with_name(f"{path.name}_backup_{stamp}")
+    extra = 2
+    while dest.exists():
+        dest = path.with_name(f"{path.name}_backup_{stamp}_{extra}")
+        extra += 1
+    return dest
+
+
+def backup_home(path: Path) -> Path | None:
+    """Move a default OpenCode home aside. Does not delete it."""
+    if not path.exists():
+        return None
     resolved = path.resolve()
     if resolved.name.lower() not in DEDICATED_DIR_NAMES:
-        raise RuntimeError(f"refusing to delete unexpected path {resolved}")
+        raise RuntimeError(f"refusing to move unexpected path {resolved}")
     if is_protected_dir(resolved):
-        raise RuntimeError(f"refusing to delete protected path {resolved}")
-    if not path.exists():
-        return
+        raise RuntimeError(f"refusing to move protected path {resolved}")
+    dest = backup_destination(path)
     last: OSError | None = None
     for _ in range(8):
         try:
-            shutil.rmtree(path)
-            return
+            shutil.move(str(path), str(dest))
+            print(f"[OK] Moved {path} -> {dest}")
+            return dest
         except OSError as exc:
             last = exc
             time.sleep(0.05)
     if last is not None:
         raise last
+    return dest
 
 
 def purge_discovered(
@@ -328,7 +343,7 @@ def purge_discovered(
     user_home: Path | None = None,
     path_parts: list[str] | None = None,
 ) -> tuple[list[Path], list[str]]:
-    """Delete only ~/.opencode and ~/.config/opencode.
+    """Move ~/.opencode and ~/.config/opencode to timestamped backups.
 
     Any other OpenCode binary stays on disk. Its directory is returned so
     PATH can drop it; the user can add that path back later.
@@ -355,9 +370,9 @@ def purge_discovered(
     removed: list[Path] = []
     for path in (opencode_home(user_home), config_home(user_home)):
         if path.exists():
-            _safe_rmtree(path)
-            removed.append(path)
-            print(f"[OK] Removed {path}")
+            backed = backup_home(path)
+            if backed is not None:
+                removed.append(backed)
         else:
             print(f"[OK] Already absent {path}")
     return removed, drop_dirs
@@ -523,7 +538,7 @@ def install(root: Path, *, user_home: Path | None = None) -> Path:
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
-        description="Wipe the previous OpenCode home and PATH entry, then install this pack."
+        description="Backup ~/.opencode, unhook other installs from PATH, then install this pack."
     )
     parser.add_argument(
         "--root",
