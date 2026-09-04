@@ -18,10 +18,15 @@ Add a new agent by dropping `agents/<name>.md`. Add a skill as
 
 ## Replace install (this repo)
 
-`install.py` **deletes** the previous OpenCode home and **removes**
-every `…/.opencode/bin` entry from the user PATH, then writes a clean
-copy of this pack. Deleting the folder alone is not enough: a stale
-PATH entry would still point at the old bin.
+`install.py` finds the previous OpenCode install even when it is not
+under `~/.opencode`. It looks at the user PATH, `opencode` / `opencode.exe`
+on that PATH, and `OPENCODE_HOME` / `OPENCODE_INSTALL` / `OPENCODE_BIN`.
+A dedicated tree (`…/opencode/bin` or `…/.opencode/bin`) is deleted and
+that directory is removed from PATH. A shared tools directory (for
+example `/usr/local/bin` next to `git`) only loses the `opencode`
+binary; the PATH entry stays. Default homes `~/.opencode` and
+`~/.config/opencode` are always removed, then this pack is written
+fresh. Deleting a folder without touching PATH is not enough.
 
 ```bash
 python install.py --root .

@@ -26,6 +26,21 @@ PATH_BEGIN = "# >>> opencode-configs PATH >>>"
 PATH_END = "# <<< opencode-configs PATH <<<"
 PATH_EXPORT = 'export PATH="$HOME/.opencode/bin:$PATH"'
 UNIX_PROFILE_NAMES = (".profile", ".bashrc", ".zshrc")
+BINARY_NAMES = ("opencode.exe", "opencode.cmd", "opencode.bat", "opencode.ps1", "opencode")
+DEDICATED_DIR_NAMES = {".opencode", "opencode"}
+PROTECTED_DIR_NAMES = {
+    "windows",
+    "system32",
+    "syswow64",
+    "program files",
+    "program files (x86)",
+    "usr",
+    "bin",
+    "sbin",
+    "etc",
+    "lib",
+    "lib64",
+}
 
 
 def home(user_home: Path | None = None) -> Path:
@@ -50,12 +65,70 @@ def bin_dir(user_home: Path | None = None) -> Path:
     return opencode_home(user_home) / "bin"
 
 
-def is_opencode_bin_entry(entry: str) -> bool:
+def _norm_path(entry: str) -> str:
     text = (entry or "").strip().strip('"')
     if not text:
+        return ""
+    return os.path.normcase(os.path.normpath(os.path.expandvars(os.path.expanduser(text))))
+
+
+def is_opencode_bin_entry(entry: str) -> bool:
+    """True for the default home bin, or a dedicated …/opencode/bin dir."""
+    norm = _norm_path(entry)
+    if not norm:
         return False
-    norm = os.path.normcase(os.path.normpath(os.path.expandvars(os.path.expanduser(text))))
-    return norm.endswith(os.path.normcase(os.path.join(".opencode", "bin")))
+    if norm.endswith(os.path.normcase(os.path.join(".opencode", "bin"))):
+        return True
+    parts = Path(norm).parts
+    if len(parts) >= 2 and parts[-1].lower() == "bin" and parts[-2].lower() in DEDICATED_DIR_NAMES:
+        return True
+    if Path(norm).name.lower() in DEDICATED_DIR_NAMES:
+        return True
+    return False
+
+
+def is_protected_dir(path: Path) -> bool:
+    try:
+        resolved = path.resolve()
+    except OSError:
+        return True
+    if len(resolved.parts) <= (2 if os.name == "nt" else 1):
+        return True
+    names = {part.lower() for part in resolved.parts}
+    if names & PROTECTED_DIR_NAMES and resolved.name.lower() not in DEDICATED_DIR_NAMES:
+        return True
+    return False
+
+
+def dedicated_install_root(binary: Path) -> Path | None:
+    """Return the tree to delete when the binary lives in its own OpenCode folder."""
+    try:
+        binary = binary.resolve()
+    except OSError:
+        return None
+    parent = binary.parent
+    if parent.name.lower() == "bin" and parent.parent.name.lower() in DEDICATED_DIR_NAMES:
+        return parent.parent
+    if parent.name.lower() in DEDICATED_DIR_NAMES:
+        return parent
+    return None
+
+
+def dir_has_other_executables(directory: Path) -> bool:
+    try:
+        entries = list(directory.iterdir())
+    except OSError:
+        return True
+    for item in entries:
+        if not item.is_file():
+            continue
+        stem = item.stem.lower()
+        suffix = item.suffix.lower()
+        if stem == "opencode":
+            continue
+        if suffix in {"", ".exe", ".cmd", ".bat", ".com", ".ps1"} or item.name.lower() in BINARY_NAMES:
+            return True
+    return False
 
 
 def split_path(raw: str, *, windows: bool | None = None) -> list[str]:
@@ -68,8 +141,114 @@ def join_path(parts: list[str], *, windows: bool | None = None) -> str:
     return sep.join(parts)
 
 
-def strip_opencode_bin_entries(parts: list[str]) -> list[str]:
-    return [part for part in parts if not is_opencode_bin_entry(part)]
+def strip_opencode_bin_entries(
+    parts: list[str],
+    extra_drop: list[str] | None = None,
+) -> list[str]:
+    extra = {_norm_path(item) for item in (extra_drop or []) if _norm_path(item)}
+    kept: list[str] = []
+    for part in parts:
+        if is_opencode_bin_entry(part):
+            continue
+        if _norm_path(part) in extra:
+            continue
+        kept.append(part)
+    return kept
+
+
+def opencode_binaries_in_dir(directory: Path) -> list[Path]:
+    found: list[Path] = []
+    try:
+        if not directory.is_dir():
+            return found
+    except OSError:
+        return found
+    for name in BINARY_NAMES:
+        candidate = directory / name
+        try:
+            if candidate.is_file():
+                found.append(candidate)
+        except OSError:
+            continue
+    return found
+
+
+def find_opencode_binaries(
+    *,
+    user_home: Path | None = None,
+    path_parts: list[str] | None = None,
+) -> list[Path]:
+    """Locate opencode executables from PATH, env, and the default homes."""
+    found: list[Path] = []
+    seen: set[str] = set()
+
+    def add(path: Path) -> None:
+        try:
+            resolved = path.resolve()
+        except OSError:
+            return
+        try:
+            if not resolved.is_file():
+                return
+        except OSError:
+            return
+        if not resolved.name.lower().startswith("opencode"):
+            return
+        key = os.path.normcase(str(resolved))
+        if key in seen:
+            return
+        seen.add(key)
+        found.append(resolved)
+
+    parts = list(path_parts or [])
+    if user_home is None:
+        parts.extend(split_path(os.environ.get("PATH", "")))
+        for name in BINARY_NAMES:
+            which = shutil.which(name)
+            if which:
+                add(Path(which))
+        for key in ("OPENCODE_INSTALL", "OPENCODE_HOME", "OPENCODE_BIN"):
+            raw = (os.environ.get(key) or "").strip()
+            if not raw:
+                continue
+            hint = Path(os.path.expandvars(os.path.expanduser(raw)))
+            if hint.is_file():
+                add(hint)
+            else:
+                for binary in opencode_binaries_in_dir(hint / "bin"):
+                    add(binary)
+                for binary in opencode_binaries_in_dir(hint):
+                    add(binary)
+
+    for entry in parts:
+        directory = Path(os.path.expandvars(os.path.expanduser(entry.strip().strip('"'))))
+        for binary in opencode_binaries_in_dir(directory):
+            add(binary)
+
+    for base in (opencode_home(user_home), config_home(user_home)):
+        for binary in opencode_binaries_in_dir(base / "bin"):
+            add(binary)
+        for binary in opencode_binaries_in_dir(base):
+            add(binary)
+    return found
+
+
+def path_dirs_for_install(binary: Path) -> list[Path]:
+    """PATH directories that belong to this install (safe to drop)."""
+    dirs: list[Path] = [binary.parent]
+    root = dedicated_install_root(binary)
+    if root is not None:
+        dirs.append(root)
+        dirs.append(root / "bin")
+    return dirs
+
+
+def unlink_binary(path: Path) -> None:
+    try:
+        path.unlink()
+        print(f"[OK] Removed binary {path}")
+    except OSError as exc:
+        print(f"[WARN] could not remove {path}: {exc}")
 
 
 def strip_profile_block(text: str) -> str:
@@ -122,8 +301,10 @@ def list_skill_dirs(root: Path) -> list[Path]:
 
 def _safe_rmtree(path: Path) -> None:
     resolved = path.resolve()
-    if resolved.name not in {".opencode", "opencode"}:
+    if resolved.name.lower() not in DEDICATED_DIR_NAMES:
         raise RuntimeError(f"refusing to delete unexpected path {resolved}")
+    if is_protected_dir(resolved):
+        raise RuntimeError(f"refusing to delete protected path {resolved}")
     if not path.exists():
         return
     last: OSError | None = None
@@ -138,15 +319,53 @@ def _safe_rmtree(path: Path) -> None:
         raise last
 
 
-def purge_homes(user_home: Path | None = None) -> list[Path]:
+def purge_discovered(
+    *,
+    user_home: Path | None = None,
+    path_parts: list[str] | None = None,
+) -> tuple[list[Path], list[str]]:
+    """Delete dedicated OpenCode trees and binaries found on PATH.
+
+    Shared tool dirs (for example /usr/local/bin next to git) only lose the
+    opencode files. Their PATH entry stays.
+    """
+    binaries = find_opencode_binaries(user_home=user_home, path_parts=path_parts)
+    drop_dirs: list[str] = []
     removed: list[Path] = []
+    seen_roots: set[str] = set()
+    for binary in binaries:
+        root = dedicated_install_root(binary)
+        if root is not None:
+            key = os.path.normcase(str(root))
+            if key not in seen_roots:
+                seen_roots.add(key)
+                if root.exists():
+                    _safe_rmtree(root)
+                    removed.append(root)
+                    print(f"[OK] Removed install {root}")
+            for directory in path_dirs_for_install(binary):
+                drop_dirs.append(str(directory))
+            continue
+        parent = binary.parent
+        if is_protected_dir(parent) or dir_has_other_executables(parent):
+            unlink_binary(binary)
+            print(f"[OK] Left shared PATH dir in place: {parent}")
+            continue
+        unlink_binary(binary)
+        drop_dirs.append(str(parent))
     for path in (opencode_home(user_home), config_home(user_home)):
-        if path.exists():
+        key = os.path.normcase(str(path.resolve())) if path.exists() else ""
+        if path.exists() and key not in seen_roots:
             _safe_rmtree(path)
             removed.append(path)
             print(f"[OK] Removed {path}")
-        else:
+        elif not path.exists():
             print(f"[OK] Already absent {path}")
+    return removed, drop_dirs
+
+
+def purge_homes(user_home: Path | None = None) -> list[Path]:
+    removed, _drop = purge_discovered(user_home=user_home)
     return removed
 
 
@@ -201,10 +420,14 @@ def close_path_handle(handle: object, *, user_home: Path | None = None) -> None:
         pass
 
 
-def remove_from_path(*, user_home: Path | None = None) -> list[str]:
+def remove_from_path(
+    *,
+    user_home: Path | None = None,
+    extra_drop: list[str] | None = None,
+) -> list[str]:
     parts, handle = read_user_path(user_home=user_home)
     try:
-        kept = strip_opencode_bin_entries(parts)
+        kept = strip_opencode_bin_entries(parts, extra_drop=extra_drop)
         dropped = [part for part in parts if part not in kept]
         write_user_path(kept, handle, user_home=user_home)
     except Exception:
@@ -222,7 +445,9 @@ def remove_from_path(*, user_home: Path | None = None) -> list[str]:
             print(f"[OK] Stripped PATH block from {path}")
     if user_home is None:
         current = split_path(os.environ.get("PATH", ""))
-        os.environ["PATH"] = join_path(strip_opencode_bin_entries(current))
+        os.environ["PATH"] = join_path(
+            strip_opencode_bin_entries(current, extra_drop=extra_drop)
+        )
     for entry in dropped:
         print(f"[OK] Removed from PATH: {entry}")
     if not dropped:
@@ -284,8 +509,10 @@ def install(root: Path, *, user_home: Path | None = None) -> Path:
     list_agent_files(root)
     list_skill_dirs(root)
     print("Purging previous OpenCode install (folders + PATH)…")
-    remove_from_path(user_home=user_home)
-    purge_homes(user_home=user_home)
+    parts, handle = read_user_path(user_home=user_home)
+    close_path_handle(handle, user_home=user_home)
+    _removed, drop_dirs = purge_discovered(user_home=user_home, path_parts=parts)
+    remove_from_path(user_home=user_home, extra_drop=drop_dirs)
     print("Installing this pack…")
     write_files(root, user_home=user_home)
     prepend_to_path(user_home=user_home)

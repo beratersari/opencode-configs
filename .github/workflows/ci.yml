@@ -22,16 +22,19 @@ jobs:
         run: |
           set -euo pipefail
           CI_HOME="${RUNNER_TEMP}/oc-home"
-          mkdir -p "$CI_HOME/.opencode/bin" "$CI_HOME/.config/opencode/agents"
+          CUSTOM="${RUNNER_TEMP}/apps/opencode/bin"
+          mkdir -p "$CI_HOME/.opencode/bin" "$CI_HOME/.config/opencode/agents" "$CUSTOM"
           echo old-binary > "$CI_HOME/.opencode/bin/opencode"
           echo leftover > "$CI_HOME/.opencode/old.txt"
           echo stale > "$CI_HOME/.config/opencode/agents/stale.md"
+          echo custom-old > "$CUSTOM/opencode"
           python - <<PY
           import install
           from pathlib import Path
           home = Path(r"${CI_HOME}")
+          custom = Path(r"${CUSTOM}")
           install.write_user_path(
-              [str(home / ".opencode" / "bin"), str(home / "keep-on-path")],
+              [str(custom), str(home / ".opencode" / "bin"), str(home / "keep-on-path")],
               None,
               user_home=home,
           )
@@ -39,6 +42,7 @@ jobs:
           python install.py --root "$PWD" --user-home "$CI_HOME"
           test ! -f "$CI_HOME/.opencode/old.txt"
           test ! -f "$CI_HOME/.config/opencode/agents/stale.md"
+          test ! -e "${RUNNER_TEMP}/apps/opencode"
           test -f "$CI_HOME/.config/opencode/agents/review.md"
           test -f "$CI_HOME/.opencode/skills/cpp98/SKILL.md"
           python - <<PY
@@ -75,22 +79,27 @@ jobs:
         run: |
           $ErrorActionPreference = "Stop"
           $ciHome = Join-Path $env:RUNNER_TEMP "oc-home"
+          $custom = Join-Path $env:RUNNER_TEMP "apps\opencode\bin"
           New-Item -ItemType Directory -Force -Path (Join-Path $ciHome ".opencode\bin") | Out-Null
           New-Item -ItemType Directory -Force -Path (Join-Path $ciHome ".config\opencode\agents") | Out-Null
+          New-Item -ItemType Directory -Force -Path $custom | Out-Null
           Set-Content -Path (Join-Path $ciHome ".opencode\bin\opencode.exe") -Value "old-binary"
           Set-Content -Path (Join-Path $ciHome ".opencode\old.txt") -Value "leftover"
           Set-Content -Path (Join-Path $ciHome ".config\opencode\agents\stale.md") -Value "stale"
+          Set-Content -Path (Join-Path $custom "opencode.exe") -Value "custom-old"
           python -c @"
           import install
           from pathlib import Path
           home = Path(r'$ciHome')
+          custom = Path(r'$custom')
           install.write_user_path(
-              [str(home / '.opencode' / 'bin'), str(home / 'keep-on-path')],
+              [str(custom), str(home / '.opencode' / 'bin'), str(home / 'keep-on-path')],
               None,
               user_home=home,
           )
           "@
           python install.py --root $PWD --user-home $ciHome
+          if (Test-Path (Join-Path $env:RUNNER_TEMP "apps\opencode")) { throw "custom install still present" }
           if (Test-Path (Join-Path $ciHome ".opencode\old.txt")) { throw "old tree still present" }
           if (Test-Path (Join-Path $ciHome ".config\opencode\agents\stale.md")) { throw "stale agent still present" }
           if (-not (Test-Path (Join-Path $ciHome ".config\opencode\agents\review.md"))) { throw "review agent missing" }

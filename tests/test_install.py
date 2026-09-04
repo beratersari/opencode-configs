@@ -12,12 +12,25 @@ import install  # noqa: E402
 
 
 class PathHelpers(unittest.TestCase):
-    def test_detects_opencode_bin_only(self) -> None:
+    def test_detects_default_and_dedicated_bin(self) -> None:
         self.assertTrue(install.is_opencode_bin_entry(r"C:\Users\x\.opencode\bin"))
         self.assertTrue(install.is_opencode_bin_entry("/home/x/.opencode/bin"))
-        self.assertFalse(install.is_opencode_bin_entry(r"C:\tools\opencode\bin"))
+        self.assertTrue(install.is_opencode_bin_entry(r"C:\tools\opencode\bin"))
+        self.assertTrue(install.is_opencode_bin_entry("/opt/opencode/bin"))
         self.assertFalse(install.is_opencode_bin_entry("/usr/local/bin"))
+        self.assertFalse(install.is_opencode_bin_entry(r"C:\tools\bin"))
         self.assertFalse(install.is_opencode_bin_entry(""))
+
+    def test_dedicated_root_from_binary(self) -> None:
+        import tempfile
+
+        tmp = Path(tempfile.mkdtemp(prefix="ocfg-"))
+        self.addCleanup(lambda: __import__("shutil").rmtree(tmp, ignore_errors=True))
+        binary = tmp / "apps" / "opencode" / "bin" / "opencode.exe"
+        binary.parent.mkdir(parents=True)
+        binary.write_text("x", encoding="utf-8")
+        root = install.dedicated_install_root(binary)
+        self.assertEqual(root, binary.parent.parent)
 
     def test_strip_removes_only_opencode_bin(self) -> None:
         parts = [r"C:\Windows", r"C:\Users\x\.opencode\bin", r"C:\git\cmd"]
@@ -104,6 +117,48 @@ class ReplaceInstall(unittest.TestCase):
         home = tmp / "home"
         install.install(pack, user_home=home)
         self.assertTrue((home / ".config" / "opencode" / "agents" / "extra.md").is_file())
+
+    def test_custom_location_removed_from_disk_and_path(self) -> None:
+        import tempfile
+        import shutil
+
+        tmp = Path(tempfile.mkdtemp(prefix="ocfg-"))
+        self.addCleanup(lambda: shutil.rmtree(tmp, ignore_errors=True))
+        home = tmp / "home"
+        custom = tmp / "apps" / "opencode" / "bin"
+        custom.mkdir(parents=True)
+        (custom / "opencode.exe").write_text("old", encoding="utf-8")
+        keep = tmp / "keep-me"
+        home.mkdir(parents=True)
+        (home / ".opencode-path").write_text(
+            install.join_path([str(custom), str(keep)]),
+            encoding="utf-8",
+        )
+        install.install(ROOT, user_home=home)
+        self.assertFalse((tmp / "apps" / "opencode").exists())
+        path = install.split_path((home / ".opencode-path").read_text(encoding="utf-8"))
+        self.assertNotIn(str(custom), path)
+        self.assertIn(str(keep), path)
+        self.assertTrue((home / ".config" / "opencode" / "agents" / "review.md").is_file())
+
+    def test_shared_bin_keeps_path_and_other_tools(self) -> None:
+        import tempfile
+        import shutil
+
+        tmp = Path(tempfile.mkdtemp(prefix="ocfg-"))
+        self.addCleanup(lambda: shutil.rmtree(tmp, ignore_errors=True))
+        tools = tmp / "tools" / "bin"
+        tools.mkdir(parents=True)
+        (tools / "opencode.exe").write_text("old", encoding="utf-8")
+        (tools / "git.exe").write_text("git", encoding="utf-8")
+        home = tmp / "home"
+        (home / ".opencode-path").parent.mkdir(parents=True)
+        (home / ".opencode-path").write_text(str(tools), encoding="utf-8")
+        install.install(ROOT, user_home=home)
+        self.assertFalse((tools / "opencode.exe").exists())
+        self.assertTrue((tools / "git.exe").exists())
+        path = install.split_path((home / ".opencode-path").read_text(encoding="utf-8"))
+        self.assertIn(str(tools), path)
 
 
 if __name__ == "__main__":
