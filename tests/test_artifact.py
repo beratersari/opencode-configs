@@ -55,6 +55,7 @@ class Artifact(unittest.TestCase):
         self.assertIn("PYTHONSAFEPATH", workflow)
         self.assertIn("vendor/bin/linux/opencode", workflow)
         self.assertIn("vendor\\bin\\windows\\opencode.exe", workflow)
+        self.assertIn("tail -n 1", workflow)
         self.assertIn("--require-binary", workflow)
         self.assertNotIn("--skip-binary", workflow)
         self.assertNotIn("agents/review.md", workflow)
@@ -106,6 +107,22 @@ class Artifact(unittest.TestCase):
         self.assertEqual(rc, 0)
         self.assertTrue((dest / "install.py").is_file())
         self.assertFalse((dest / "vendor" / "bin").exists())
+
+    def test_main_stdout_is_only_dest_path(self) -> None:
+        import io
+        from contextlib import redirect_stderr, redirect_stdout
+
+        dest = Path(tempfile.mkdtemp(prefix="ocfg-out-")) / "pack"
+        out = io.StringIO()
+        err = io.StringIO()
+        with redirect_stdout(out), redirect_stderr(err):
+            rc = _load_builder().main(
+                ["--root", str(ROOT), "--skip-binary", "--out", str(dest), "--os", "linux"]
+            )
+        self.assertEqual(rc, 0)
+        lines = [line for line in out.getvalue().splitlines() if line.strip()]
+        self.assertEqual(len(lines), 1, out.getvalue())
+        self.assertEqual(Path(lines[0]), dest.resolve())
 
     def test_vendor_scripts_call_in_place(self) -> None:
         bat = (ROOT / "vendor.bat").read_text(encoding="utf-8")

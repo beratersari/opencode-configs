@@ -133,14 +133,20 @@ def extract_archive(archive: Path, dest: Path) -> None:
     raise SystemExit(f"Unknown archive type: {archive}")
 
 
+def _log(message: str) -> None:
+    # stdout is only the dest path so `dest=$(python ...)` stays a single line.
+    print(message, file=sys.stderr)
+
+
 def download(url: str, dest: Path) -> None:
     dest.parent.mkdir(parents=True, exist_ok=True)
-    print(f"  Downloading {url}")
-    print(f"           to {dest}")
-    with urllib.request.urlopen(url) as resp, dest.open("wb") as handle:
+    _log(f"  Downloading {url}")
+    _log(f"           to {dest}")
+    req = urllib.request.Request(url, headers={"User-Agent": "opencode-configs-vendor"})
+    with urllib.request.urlopen(req) as resp, dest.open("wb") as handle:
         shutil.copyfileobj(resp, handle)
     size = dest.stat().st_size
-    print(f"  OK ({size / (1024 * 1024):.1f} MB)")
+    _log(f"  OK ({size / (1024 * 1024):.1f} MB)")
 
 
 def copy_opencode_binary(src: Path, dest_bin: Path) -> Path:
@@ -149,7 +155,7 @@ def copy_opencode_binary(src: Path, dest_bin: Path) -> Path:
     shutil.copy2(src, target)
     if src.name != "opencode.exe":
         target.chmod(target.stat().st_mode | 0o111)
-    print(f"  OpenCode binary: {target} ({target.stat().st_size / (1024 * 1024):.1f} MB)")
+    _log(f"  OpenCode binary: {target} ({target.stat().st_size / (1024 * 1024):.1f} MB)")
     return target
 
 

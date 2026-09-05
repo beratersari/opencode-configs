@@ -67,7 +67,8 @@ jobs:
       - name: Stage Linux artifact
         id: art
         run: |
-          dest=$(python packaging/build_artifact.py --os linux --out-dir dist)
+          set -euo pipefail
+          dest=$(python packaging/build_artifact.py --os linux --out-dir dist | tail -n 1)
           test -f "$dest/vendor/bin/linux/opencode"
           ART_HOME="${RUNNER_TEMP}/oc-from-art"
           python "$dest/install.py" --root "$dest" --user-home "$ART_HOME" --require-binary
