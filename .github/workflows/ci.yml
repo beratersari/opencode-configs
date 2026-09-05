@@ -17,7 +17,11 @@ jobs:
         with:
           python-version: "3.11"
       - name: Unittest
-        run: python -m unittest discover -s tests -t .
+        env:
+          # Keep the repo root off sys.path at startup. A local packaging/
+          # folder would otherwise shadow the PyPI package setuptools imports.
+          PYTHONSAFEPATH: "1"
+        run: python -m unittest discover -s tests -v
       - name: Wipe old OpenCode home and PATH, then install
         run: |
           set -euo pipefail
@@ -45,7 +49,7 @@ jobs:
           test -f "${CUSTOM}/opencode"
           backup=$(ls -d "$CI_HOME"/.opencode_backup_* | head -1)
           test -f "$backup/old.txt"
-          test -f "$CI_HOME/.config/opencode/agents/review.md"
+          test -f "$CI_HOME/.config/opencode/agents/gitlab-reviewer.md"
           test -f "$CI_HOME/.opencode/skills/cpp98/SKILL.md"
           python - <<PY
           import install
@@ -81,7 +85,11 @@ jobs:
         with:
           python-version: "3.11"
       - name: Unittest
-        run: python -m unittest discover -s tests -t .
+        env:
+          # Keep the repo root off sys.path at startup. A local packaging/
+          # folder would otherwise shadow the PyPI package setuptools imports.
+          PYTHONSAFEPATH: "1"
+        run: python -m unittest discover -s tests -v
       - name: Wipe old OpenCode home and PATH, then install
         shell: pwsh
         run: |
@@ -113,7 +121,7 @@ jobs:
           if (-not $backup) { throw "expected .opencode_backup_*" }
           if (-not (Test-Path (Join-Path $backup.FullName "old.txt"))) { throw "backup missing old.txt" }
           if (Test-Path (Join-Path $ciHome ".config\opencode\agents\stale.md")) { throw "stale agent still present" }
-          if (-not (Test-Path (Join-Path $ciHome ".config\opencode\agents\review.md"))) { throw "review agent missing" }
+          if (-not (Test-Path (Join-Path $ciHome ".config\opencode\agents\gitlab-reviewer.md"))) { throw "gitlab-reviewer agent missing" }
           python -c @"
           import install
           from pathlib import Path

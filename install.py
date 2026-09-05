@@ -70,7 +70,10 @@ def _norm_path(entry: str) -> str:
     text = (entry or "").strip().strip('"')
     if not text:
         return ""
-    return os.path.normcase(os.path.normpath(os.path.expandvars(os.path.expanduser(text))))
+    text = os.path.expandvars(os.path.expanduser(text))
+    # PATH copies from the other OS (Git Bash, WSL, CI) use the other slash.
+    text = text.replace("\\", "/") if os.name != "nt" else text.replace("/", "\\")
+    return os.path.normcase(os.path.normpath(text))
 
 
 def is_opencode_bin_entry(entry: str) -> bool:

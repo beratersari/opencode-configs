@@ -48,7 +48,9 @@ class Artifact(unittest.TestCase):
         workflow = (ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
         self.assertIn("upload-artifact", workflow)
         self.assertIn("build_artifact.py", workflow)
-        self.assertNotIn(".zip", workflow)
+        self.assertIn("gitlab-reviewer.md", workflow)
+        self.assertIn("PYTHONSAFEPATH", workflow)
+        self.assertNotIn("agents/review.md", workflow)
         self.assertNotIn("opencode-configs-*-linux.zip", workflow)
         self.assertNotIn("opencode-configs-*-windows.zip", workflow)
 

@@ -14,11 +14,13 @@ import install  # noqa: E402
 class PathHelpers(unittest.TestCase):
     def test_detects_default_and_dedicated_bin(self) -> None:
         self.assertTrue(install.is_opencode_bin_entry(r"C:\Users\x\.opencode\bin"))
+        self.assertTrue(install.is_opencode_bin_entry("C:/Users/x/.opencode/bin"))
         self.assertTrue(install.is_opencode_bin_entry("/home/x/.opencode/bin"))
         self.assertTrue(install.is_opencode_bin_entry(r"C:\tools\opencode\bin"))
         self.assertTrue(install.is_opencode_bin_entry("/opt/opencode/bin"))
         self.assertFalse(install.is_opencode_bin_entry("/usr/local/bin"))
         self.assertFalse(install.is_opencode_bin_entry(r"C:\tools\bin"))
+        self.assertFalse(install.is_opencode_bin_entry("C:/tools/bin"))
         self.assertFalse(install.is_opencode_bin_entry(""))
 
     def test_dedicated_root_from_binary(self) -> None:
