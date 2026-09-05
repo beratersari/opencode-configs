@@ -78,6 +78,8 @@ class ReplaceInstall(unittest.TestCase):
         agents = [p.stem for p in install.list_agent_files(ROOT)]
         skills = [p.name for p in install.list_skill_dirs(ROOT)]
         self.assertIn("gitlab-reviewer", agents)
+        self.assertIn("derman-build", agents)
+        self.assertIn("derman-plan", agents)
         self.assertIn("cpp98", skills)
         self.assertIn("modern-cpp", skills)
         self.assertIn("cpp-memory-safety", skills)

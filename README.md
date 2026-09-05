@@ -1,13 +1,18 @@
 # OpenCoderman
 
 OpenCode agents and a general skill library. One home: `~/.opencode`.
-The `gitlab-reviewer` agent is OpenCoderman; later agents (implement,
-plan, commit) should load the same `skills/` tree. Installers copy
+The `gitlab-reviewer` agent is OpenCoderman. **derman-build**
+implements; **derman-plan** plans. They are general unattended
+agents, not stock OpenCode `build` / `plan`. Language, style, build
+commands, and commit format come from the target repo (`AGENTS.md`
+and `git log`). They load the same `skills/` tree. Installers copy
 every `skills/*/SKILL.md`. Each skill says when to load.
 
 ```
 agents/           # -> ~/.opencode/agents/<name>.md
   gitlab-reviewer.md  # OpenCoderman GitLab reviewer (allow-list of skills)
+  derman-build.md     # General unattended implementer (not stock build)
+  derman-plan.md      # General unattended planner (not stock plan)
 skills/           # -> ~/.opencode/skills/<name>/SKILL.md
 ```
 

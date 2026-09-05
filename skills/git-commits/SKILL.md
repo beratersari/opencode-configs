@@ -7,9 +7,19 @@ compatibility: opencode
 
 # Git commits
 
-Combined from oh-my-opencode `git-master`. Match the repo’s
-existing `type(scope):` style when present (for example
-`feat|fix|refactor|test|docs|chore`).
+Combined from oh-my-opencode `git-master`.
+
+**Discover the format first.** Do not assume a house style.
+
+1. Read `AGENTS.md` (and `CONTRIBUTING.md` / commitlint /
+   `commitMsgFormat.md` if present).
+2. Read `git log -20 --format=%s` and copy the dominant subject
+   pattern.
+3. Put the issue key where this repo already puts it (prefix,
+   scope, or trailer).
+4. If docs and history have no pattern, use
+   `[ISSUE-KEY] type: description` with
+   `feat|fix|refactor|test|docs|chore|perf|ci|build|revert`.
 
 ## Rules
 
