@@ -50,9 +50,27 @@ class PathHelpers(unittest.TestCase):
         raw = "export PATH=/usr/bin\n"
         written = install.insert_profile_block(raw)
         self.assertIn(install.PATH_BEGIN, written)
+        self.assertIn("opencoderman PATH", written)
         self.assertIn(install.PATH_EXPORT, written)
         cleaned = install.strip_profile_block(written)
         self.assertEqual(cleaned.strip(), "export PATH=/usr/bin")
+
+    def test_other_path_block_markers_are_stripped(self) -> None:
+        raw = (
+            "keep=1\n"
+            "# >>> leftover PATH >>>\n"
+            'export PATH="$HOME/.opencode/bin:$PATH"\n'
+            "# <<< leftover PATH <<<\n"
+        )
+        cleaned = install.strip_profile_block(raw)
+        self.assertEqual(cleaned.strip(), "keep=1")
+        self.assertNotIn("leftover PATH", cleaned)
+
+    def test_review_agent_is_opencoderman(self) -> None:
+        text = (ROOT / "agents" / "gitlab-reviewer.md").read_text(encoding="utf-8")
+        self.assertIn("You are OpenCoderman", text)
+        self.assertIn("OpenCoderman GitLab merge-request reviewer", text)
+        self.assertIn("opencoderman-findings", text)
 
 
 class ReplaceInstall(unittest.TestCase):
@@ -120,15 +138,24 @@ class ReplaceInstall(unittest.TestCase):
         (tmp / ".opencode" / "bin").mkdir()
         (tmp / ".opencode-path").write_text(str(tmp / ".opencode" / "bin"), encoding="utf-8")
 
+        leftover = tmp / ".config" / "opencode" / "agents" / "stale.md"
+        leftover.parent.mkdir(parents=True)
+        leftover.write_text("stale", encoding="utf-8")
+
         dest = install.install(ROOT, user_home=tmp)
         self.assertTrue(dest.is_file())
+        self.assertEqual(dest, tmp / ".opencode" / "agents" / "gitlab-reviewer.md")
         self.assertFalse(old.exists())
         backups = list(tmp.glob(".opencode_backup_*"))
         self.assertEqual(len(backups), 1)
         self.assertTrue((backups[0] / "keep-old.txt").is_file())
         self.assertIn("mode: primary", dest.read_text(encoding="utf-8"))
         self.assertTrue((tmp / ".opencode" / "skills" / "cpp98" / "SKILL.md").is_file())
-        self.assertTrue((tmp / ".config" / "opencode" / "opencode.json").is_file())
+        self.assertTrue((tmp / ".opencode" / "opencode.json").is_file())
+        self.assertFalse((tmp / ".config" / "opencode").exists())
+        cfg_backups = list((tmp / ".config").glob("opencode_backup_*"))
+        self.assertEqual(len(cfg_backups), 1)
+        self.assertTrue((cfg_backups[0] / "agents" / "stale.md").is_file())
         path = install.split_path((tmp / ".opencode-path").read_text(encoding="utf-8"))
         self.assertTrue(path)
         self.assertTrue(install.is_opencode_bin_entry(path[0]))
@@ -153,7 +180,8 @@ class ReplaceInstall(unittest.TestCase):
         (pack / "agents" / "extra.md").write_text("---\nmode: primary\n---\nextra\n", encoding="utf-8")
         home = tmp / "home"
         install.install(pack, user_home=home)
-        self.assertTrue((home / ".config" / "opencode" / "agents" / "extra.md").is_file())
+        self.assertTrue((home / ".opencode" / "agents" / "extra.md").is_file())
+        self.assertFalse((home / ".config" / "opencode").exists())
 
     def test_custom_location_kept_on_disk_removed_from_path(self) -> None:
         import tempfile
@@ -176,7 +204,8 @@ class ReplaceInstall(unittest.TestCase):
         path = install.split_path((home / ".opencode-path").read_text(encoding="utf-8"))
         self.assertNotIn(str(custom), path)
         self.assertIn(str(keep), path)
-        self.assertTrue((home / ".config" / "opencode" / "agents" / "gitlab-reviewer.md").is_file())
+        self.assertTrue((home / ".opencode" / "agents" / "gitlab-reviewer.md").is_file())
+        self.assertFalse((home / ".config" / "opencode").exists())
 
     def test_shared_bin_files_kept_path_unhooked(self) -> None:
         import tempfile
@@ -251,7 +280,7 @@ class ReplaceInstall(unittest.TestCase):
         backups = list(home.glob(".opencode_backup_*"))
         self.assertEqual(len(backups), 1)
 
-    def test_install_without_vendor_is_configs_only(self) -> None:
+    def test_install_without_vendor_is_agents_skills_only(self) -> None:
         import tempfile
         import shutil
 
@@ -264,7 +293,8 @@ class ReplaceInstall(unittest.TestCase):
         install.install(pack, user_home=home)
         dest = home / ".opencode" / "bin" / install.binary_name()
         self.assertFalse(dest.exists())
-        self.assertTrue((home / ".config" / "opencode" / "agents" / "gitlab-reviewer.md").is_file())
+        self.assertTrue((home / ".opencode" / "agents" / "gitlab-reviewer.md").is_file())
+        self.assertFalse((home / ".config" / "opencode").exists())
 
     def test_require_binary_fails_without_cli(self) -> None:
         import tempfile

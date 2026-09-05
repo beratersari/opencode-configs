@@ -45,11 +45,13 @@ jobs:
           PY
           python install.py --root "$PWD" --user-home "$CI_HOME"
           test ! -f "$CI_HOME/.opencode/old.txt"
-          test ! -f "$CI_HOME/.config/opencode/agents/stale.md"
+          test ! -e "$CI_HOME/.config/opencode"
           test -f "${CUSTOM}/opencode"
           backup=$(ls -d "$CI_HOME"/.opencode_backup_* | head -1)
           test -f "$backup/old.txt"
-          test -f "$CI_HOME/.config/opencode/agents/gitlab-reviewer.md"
+          cfg_backup=$(ls -d "$CI_HOME/.config"/opencode_backup_* | head -1)
+          test -f "$cfg_backup/agents/stale.md"
+          test -f "$CI_HOME/.opencode/agents/gitlab-reviewer.md"
           test -f "$CI_HOME/.opencode/skills/cpp98/SKILL.md"
           python - <<PY
           import install
@@ -73,6 +75,8 @@ jobs:
           ART_HOME="${RUNNER_TEMP}/oc-from-art"
           python "$dest/install.py" --root "$dest" --user-home "$ART_HOME" --require-binary
           test -x "$ART_HOME/.opencode/bin/opencode"
+          test -f "$ART_HOME/.opencode/agents/gitlab-reviewer.md"
+          test ! -e "$ART_HOME/.config/opencode"
           echo "name=$(basename "$dest")" >> "$GITHUB_OUTPUT"
           echo "dir=$dest" >> "$GITHUB_OUTPUT"
       - uses: actions/upload-artifact@v4
@@ -125,8 +129,12 @@ jobs:
           $backup = Get-ChildItem -Path $ciHome -Directory -Filter ".opencode_backup_*" | Select-Object -First 1
           if (-not $backup) { throw "expected .opencode_backup_*" }
           if (-not (Test-Path (Join-Path $backup.FullName "old.txt"))) { throw "backup missing old.txt" }
-          if (Test-Path (Join-Path $ciHome ".config\opencode\agents\stale.md")) { throw "stale agent still present" }
-          if (-not (Test-Path (Join-Path $ciHome ".config\opencode\agents\gitlab-reviewer.md"))) { throw "gitlab-reviewer agent missing" }
+          if (Test-Path (Join-Path $ciHome ".config\opencode")) { throw "must not rewrite ~/.config/opencode" }
+          $cfgBackup = Get-ChildItem -Path (Join-Path $ciHome ".config") -Directory -Filter "opencode_backup_*" | Select-Object -First 1
+          if (-not $cfgBackup) { throw "expected .config/opencode_backup_*" }
+          if (-not (Test-Path (Join-Path $cfgBackup.FullName "agents\stale.md"))) { throw "config backup missing stale.md" }
+          if (-not (Test-Path (Join-Path $ciHome ".opencode\agents\gitlab-reviewer.md"))) { throw "gitlab-reviewer agent missing" }
+          if (-not (Test-Path (Join-Path $ciHome ".opencode\skills\cpp98\SKILL.md"))) { throw "cpp98 skill missing" }
           python -c @"
           import install
           from pathlib import Path
@@ -150,6 +158,8 @@ jobs:
           $artHome = Join-Path $env:RUNNER_TEMP "oc-from-art"
           python (Join-Path $dest "install.py") --root $dest --user-home $artHome --require-binary
           if (-not (Test-Path (Join-Path $artHome ".opencode\bin\opencode.exe"))) { throw "CLI missing after artifact install" }
+          if (-not (Test-Path (Join-Path $artHome ".opencode\agents\gitlab-reviewer.md"))) { throw "agent missing after artifact install" }
+          if (Test-Path (Join-Path $artHome ".config\opencode")) { throw "artifact install must not write ~/.config/opencode" }
           $name = Split-Path -Leaf $dest
           Add-Content -Path $env:GITHUB_OUTPUT -Value "name=$name"
           Add-Content -Path $env:GITHUB_OUTPUT -Value "dir=$dest"

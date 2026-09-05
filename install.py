@@ -1,13 +1,15 @@
 #!/usr/bin/env python3
-"""Replace-install this pack into the user OpenCode home.
+"""Replace-install OpenCoderman into the user OpenCode home.
 
-Renames ~/.opencode to ~/.opencode_backup_YYYYMMDD_HHMMSS (same for
-~/.config/opencode). Any other OpenCode copy is left in place; its
-directory is dropped from PATH so `opencode` does not resolve there.
+Renames ~/.opencode to ~/.opencode_backup_YYYYMMDD_HHMMSS. A leftover
+~/.config/opencode is also renamed (so OpenCode does not load a second
+tree) but nothing is written back there. Any other OpenCode copy is
+left in place; its directory is dropped from PATH so `opencode` does
+not resolve there.
 
 If vendor/bin has a CLI (CI artifact or vendor.sh), copy it to
 ~/.opencode/bin. If vendor is missing, reuse the binary from the
-newest ~/.opencode_backup_*. Configs-only checkouts skip the CLI.
+newest ~/.opencode_backup_*. Agents/skills-only checkouts skip the CLI.
 """
 
 from __future__ import annotations
@@ -28,8 +30,8 @@ STOCK_CONFIG = """{
 }
 """
 
-PATH_BEGIN = "# >>> opencode-configs PATH >>>"
-PATH_END = "# <<< opencode-configs PATH <<<"
+PATH_BEGIN = "# >>> opencoderman PATH >>>"
+PATH_END = "# <<< opencoderman PATH <<<"
 PATH_EXPORT = 'export PATH="$HOME/.opencode/bin:$PATH"'
 UNIX_PROFILE_NAMES = (".profile", ".bashrc", ".zshrc")
 BINARY_NAMES = ("opencode.exe", "opencode.cmd", "opencode.bat", "opencode.ps1", "opencode")
@@ -271,15 +273,25 @@ def unlink_binary(path: Path) -> None:
         print(f"[WARN] could not remove {path}: {exc}")
 
 
+def _is_path_block_begin(line: str) -> bool:
+    text = line.strip()
+    return text.startswith("# >>> ") and text.endswith(" PATH >>>")
+
+
+def _is_path_block_end(line: str) -> bool:
+    text = line.strip()
+    return text.startswith("# <<< ") and text.endswith(" PATH <<<")
+
+
 def strip_profile_block(text: str) -> str:
     out: list[str] = []
     skipping = False
     for line in (text or "").splitlines():
-        if line.strip() == PATH_BEGIN:
+        if _is_path_block_begin(line):
             skipping = True
             continue
         if skipping:
-            if line.strip() == PATH_END:
+            if _is_path_block_end(line):
                 skipping = False
             continue
         out.append(line)
@@ -358,10 +370,11 @@ def purge_discovered(
     user_home: Path | None = None,
     path_parts: list[str] | None = None,
 ) -> tuple[list[Path], list[str]]:
-    """Move ~/.opencode and ~/.config/opencode to timestamped backups.
+    """Move ~/.opencode and leftover ~/.config/opencode to backups.
 
-    Any other OpenCode binary stays on disk. Its directory is returned so
-    PATH can drop it; the user can add that path back later.
+    Nothing is written back under ~/.config/opencode. Any other OpenCode
+    binary stays on disk. Its directory is returned so PATH can drop it;
+    the user can add that path back later.
     """
     binaries = find_opencode_binaries(user_home=user_home, path_parts=path_parts)
     default_home = opencode_home(user_home).resolve()
@@ -509,27 +522,23 @@ def prepend_to_path(*, user_home: Path | None = None) -> None:
 
 def write_files(root: Path, user_home: Path | None = None) -> list[Path]:
     written: list[Path] = []
-    homes = (config_home(user_home), opencode_home(user_home))
+    base = opencode_home(user_home)
     for src in list_agent_files(root):
-        for base in homes:
-            dest = base / "agents" / src.name
-            dest.parent.mkdir(parents=True, exist_ok=True)
-            dest.write_text(src.read_text(encoding="utf-8"), encoding="utf-8")
-            written.append(dest)
-            print(f"[OK] Agent {src.stem} -> {dest}")
+        dest = base / "agents" / src.name
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        dest.write_text(src.read_text(encoding="utf-8"), encoding="utf-8")
+        written.append(dest)
+        print(f"[OK] Agent {src.stem} -> {dest}")
     for skill in list_skill_dirs(root):
-        text = (skill / "SKILL.md").read_text(encoding="utf-8")
-        for base in homes:
-            dest = base / "skills" / skill.name / "SKILL.md"
-            dest.parent.mkdir(parents=True, exist_ok=True)
-            dest.write_text(text, encoding="utf-8")
-            written.append(dest)
-            print(f"[OK] Skill {skill.name} -> {dest}")
-    for base in homes:
-        cfg = base / "opencode.json"
-        cfg.parent.mkdir(parents=True, exist_ok=True)
-        cfg.write_text(STOCK_CONFIG, encoding="utf-8")
-        written.append(cfg)
+        dest = base / "skills" / skill.name / "SKILL.md"
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        dest.write_text((skill / "SKILL.md").read_text(encoding="utf-8"), encoding="utf-8")
+        written.append(dest)
+        print(f"[OK] Skill {skill.name} -> {dest}")
+    cfg = base / "opencode.json"
+    cfg.parent.mkdir(parents=True, exist_ok=True)
+    cfg.write_text(STOCK_CONFIG, encoding="utf-8")
+    written.append(cfg)
     return written
 
 
@@ -589,7 +598,7 @@ def install_cli_binary(
                 "Use a CI artifact, or run vendor.bat / vendor.sh "
                 "(python packaging/build_artifact.py --in-place)."
             )
-        print("[OK] No vendored OpenCode CLI (configs only)")
+        print("[OK] No vendored OpenCode CLI (agents/skills only)")
         return None
     dest.parent.mkdir(parents=True, exist_ok=True)
     shutil.copy2(src, dest)
@@ -613,11 +622,11 @@ def install(
     close_path_handle(handle, user_home=user_home)
     _removed, drop_dirs = purge_discovered(user_home=user_home, path_parts=parts)
     remove_from_path(user_home=user_home, extra_drop=drop_dirs)
-    print("Installing this pack…")
+    print("Installing OpenCoderman…")
     write_files(root, user_home=user_home)
     install_cli_binary(root, user_home=user_home, required=require_binary)
     prepend_to_path(user_home=user_home)
-    dest = config_home(user_home) / "agents" / "gitlab-reviewer.md"
+    dest = opencode_home(user_home) / "agents" / "gitlab-reviewer.md"
     if not dest.is_file():
         raise FileNotFoundError(f"gitlab-reviewer agent missing after install: {dest}")
     return dest
@@ -625,7 +634,7 @@ def install(
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
-        description="Backup ~/.opencode, unhook other installs from PATH, then install this pack (CLI if vendored)."
+        description="Backup ~/.opencode, unhook other installs from PATH, then install OpenCoderman (CLI if vendored)."
     )
     parser.add_argument(
         "--root",
@@ -649,7 +658,7 @@ def main(argv: list[str] | None = None) -> int:
     except (OSError, RuntimeError) as exc:
         print(f"[ERROR] {exc}", file=sys.stderr)
         return 1
-    print(f"[OK] OpenCode configs ready: {dest}")
+    print(f"[OK] OpenCoderman ready: {dest}")
     return 0
 
 
