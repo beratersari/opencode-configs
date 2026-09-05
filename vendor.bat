@@ -19,7 +19,7 @@ if not defined PY (
     exit /b 1
 )
 echo ========================================
-echo   opencode-configs - vendor OpenCode CLI
+echo   OpenCoderman - vendor OpenCode CLI
 echo ========================================
 %PY% "%HERE%\packaging\build_artifact.py" --in-place --root "%HERE%"
 exit /b %ERRORLEVEL%

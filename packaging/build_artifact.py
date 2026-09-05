@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
-"""Stage this pack as a folder. GitHub Actions zips the upload; do not zip here.
+"""Stage OpenCoderman as a folder. GitHub Actions zips the upload; do not zip here.
 
 By default the staged folder includes the OpenCode CLI for that OS
 (downloaded here; target install.py is offline). --skip-binary builds
-a configs-only folder. --in-place writes vendor/bin into the checkout.
+an agents/skills-only folder. --in-place writes vendor/bin into the
+checkout.
 """
 
 from __future__ import annotations
@@ -56,7 +57,7 @@ def read_opencode_version(root: Path) -> str:
 def artifact_name(version: str, os_tag: str) -> str:
     safe = "".join(ch if ch.isalnum() or ch in "._-" else "_" for ch in version)
     tag = os_tag.strip().lower()
-    return f"opencode-configs-{safe}-{tag}"
+    return f"opencoderman-{safe}-{tag}"
 
 
 def host_platform() -> tuple[str, str]:
@@ -142,7 +143,7 @@ def download(url: str, dest: Path) -> None:
     dest.parent.mkdir(parents=True, exist_ok=True)
     _log(f"  Downloading {url}")
     _log(f"           to {dest}")
-    req = urllib.request.Request(url, headers={"User-Agent": "opencode-configs-vendor"})
+    req = urllib.request.Request(url, headers={"User-Agent": "opencoderman-vendor"})
     with urllib.request.urlopen(req) as resp, dest.open("wb") as handle:
         shutil.copyfileobj(resp, handle)
     size = dest.stat().st_size
@@ -231,14 +232,14 @@ def stage(root: Path, dest: Path) -> Path:
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
-        description="Stage an offline opencode-configs folder (agents, skills, CLI)."
+        description="Stage an offline OpenCoderman folder (agents, skills, CLI)."
     )
     parser.add_argument("--root", default=".")
     parser.add_argument("--os", choices=("linux", "windows", "darwin"), default="")
     parser.add_argument(
         "--out",
         default="",
-        help="Full folder path. Default: dist/opencode-configs-<version>-<os>/",
+        help="Full folder path. Default: dist/opencoderman-<version>-<os>/",
     )
     parser.add_argument("--out-dir", default="dist")
     parser.add_argument(

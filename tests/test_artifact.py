@@ -39,11 +39,11 @@ class Artifact(unittest.TestCase):
         self.assertEqual(version, "1.18.10")
         self.assertEqual(
             mod.artifact_name(version, "linux"),
-            "opencode-configs-1.18.10-linux",
+            "opencoderman-1.18.10-linux",
         )
         self.assertEqual(
             mod.artifact_name(version, "windows"),
-            "opencode-configs-1.18.10-windows",
+            "opencoderman-1.18.10-windows",
         )
         self.assertFalse(mod.artifact_name(version, "linux").endswith(".zip"))
 
@@ -59,8 +59,8 @@ class Artifact(unittest.TestCase):
         self.assertIn("--require-binary", workflow)
         self.assertNotIn("--skip-binary", workflow)
         self.assertNotIn("agents/review.md", workflow)
-        self.assertNotIn("opencode-configs-*-linux.zip", workflow)
-        self.assertNotIn("opencode-configs-*-windows.zip", workflow)
+        self.assertNotIn("opencoderman-*-linux.zip", workflow)
+        self.assertNotIn("opencoderman-*-windows.zip", workflow)
 
     def test_opencode_download_url(self) -> None:
         mod = _load_builder()

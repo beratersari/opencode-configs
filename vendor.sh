@@ -17,6 +17,6 @@ else
   exit 1
 fi
 echo "========================================"
-echo "  opencode-configs - vendor OpenCode CLI"
+echo "  OpenCoderman - vendor OpenCode CLI"
 echo "========================================"
 exec "$PY" "$HERE/packaging/build_artifact.py" --in-place --root "$HERE"
