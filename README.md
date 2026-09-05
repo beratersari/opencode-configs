@@ -1,14 +1,14 @@
-# OpenCode configs
+# OpenCoderman
 
-Shared OpenCode **agents** and a general **skill library**. Creasy
-ships the `review` agent today; later agents (implement, plan,
-commit) should load the same `skills/` tree. Installers copy every
-`skills/*/SKILL.md`. Each skill says when to load.
+OpenCode agents and a general skill library. One home: `~/.opencode`.
+The `gitlab-reviewer` agent is OpenCoderman; later agents (implement,
+plan, commit) should load the same `skills/` tree. Installers copy
+every `skills/*/SKILL.md`. Each skill says when to load.
 
 ```
-agents/           # -> ~/.config/opencode/agents/<name>.md
-  gitlab-reviewer.md  # read-only GitLab reviewer (allow-list of skills)
-skills/           # -> ~/.config/opencode/skills/<name>/SKILL.md
+agents/           # -> ~/.opencode/agents/<name>.md
+  gitlab-reviewer.md  # OpenCoderman GitLab reviewer (allow-list of skills)
+skills/           # -> ~/.opencode/skills/<name>/SKILL.md
 ```
 
 ## Skills
@@ -55,18 +55,20 @@ Add a new agent by dropping `agents/<name>.md`. Add a skill as
 ## Replace install (this repo)
 
 `install.py` **renames** `~/.opencode` to
-`~/.opencode_backup_YYYYMMDD_HHMMSS` (and `~/.config/opencode` to
-`~/.config/opencode_backup_YYYYMMDD_HHMMSS`). It does not delete those
-trees. If another OpenCode exists (another folder on PATH, or
-`OPENCODE_HOME` / `OPENCODE_INSTALL` / `OPENCODE_BIN`), those files
-stay where they are. That directory is removed from the user PATH so
-`opencode` does not resolve there. Put the old path back if you still
-want that copy. System dirs such as `/usr/local/bin` are not stripped.
+`~/.opencode_backup_YYYYMMDD_HHMMSS`. A leftover `~/.config/opencode`
+is renamed to `~/.config/opencode_backup_YYYYMMDD_HHMMSS` so OpenCode
+does not load a second tree. The installer does **not** write anything
+under `~/.config/opencode`. It does not delete those backup trees. If
+another OpenCode exists (another folder on PATH, or `OPENCODE_HOME` /
+`OPENCODE_INSTALL` / `OPENCODE_BIN`), those files stay where they are.
+That directory is removed from the user PATH so `opencode` does not
+resolve there. Put the old path back if you still want that copy.
+System dirs such as `/usr/local/bin` are not stripped.
 
 A CI artifact (or `vendor.sh`) ships `vendor/bin/<os>/opencode`.
 `install.py` copies that CLI into `~/.opencode/bin`. If vendor is
 missing, it reuses the binary from the newest backup. A git checkout
-without `vendor/` is configs-only.
+without `vendor/` is agents/skills only.
 
 ```bash
 # Offline: unpack the GitHub Actions artifact, then:
@@ -80,14 +82,15 @@ python install.py --root .
 ```
 
 Windows: user PATH in `HKCU\Environment`. Linux: `PATH` plus a marked
-block in `~/.profile`. Creasy's `install-opencode` uses the same
-replace rules, then copies its own `vendor/bin` (or this pack's).
+block in `~/.profile`. Other products (for example Creasy) can call
+the same `install.py`, then copy their own `vendor/bin` if they have
+one.
 
 ## CI artifacts
 
 Push to `main` uploads folders named
-`opencode-configs-1.18.10-windows` and
-`opencode-configs-1.18.10-linux` (`OPENCODE_VERSION` in
+`opencoderman-1.18.10-windows` and
+`opencoderman-1.18.10-linux` (`OPENCODE_VERSION` in
 `packaging/versions.env`). GitHub wraps each folder as a zip; the
 download is not a zip of a zip. Each artifact has `agents/`,
 `skills/`, the install scripts, and `vendor/bin/<os>/` with the
@@ -99,11 +102,11 @@ On a machine with network you can vendor into a checkout:
 python packaging/build_artifact.py --in-place
 ```
 
-`--skip-binary` stages a configs-only folder (no CLI download).
+`--skip-binary` stages an agents/skills-only folder (no CLI download).
 
 ## Use in another repo
 
 ```bash
-git submodule add https://github.com/beratersari/opencode-configs.git opencode-configs
+git submodule add https://github.com/beratersari/opencoderman.git opencoderman
 git submodule update --init --recursive
 ```
