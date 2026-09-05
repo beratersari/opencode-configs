@@ -73,6 +73,13 @@ def _norm_path(entry: str) -> str:
     text = os.path.expandvars(os.path.expanduser(text))
     # PATH copies from the other OS (Git Bash, WSL, CI) use the other slash.
     text = text.replace("\\", "/") if os.name != "nt" else text.replace("/", "\\")
+    path = Path(text)
+    try:
+        if path.exists():
+            # Windows CI temp dirs often mix 8.3 (RUNNER~1) and long names.
+            text = str(path.resolve())
+    except OSError:
+        pass
     return os.path.normcase(os.path.normpath(text))
 
 

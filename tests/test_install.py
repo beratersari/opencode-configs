@@ -32,12 +32,19 @@ class PathHelpers(unittest.TestCase):
         binary.parent.mkdir(parents=True)
         binary.write_text("x", encoding="utf-8")
         root = install.dedicated_install_root(binary)
-        self.assertEqual(root, binary.parent.parent)
+        self.assertEqual(root, binary.resolve().parent.parent)
 
     def test_strip_removes_only_opencode_bin(self) -> None:
         parts = [r"C:\Windows", r"C:\Users\x\.opencode\bin", r"C:\git\cmd"]
         kept = install.strip_opencode_bin_entries(parts)
         self.assertEqual(kept, [r"C:\Windows", r"C:\git\cmd"])
+
+    def test_norm_path_resolves_existing_dir(self) -> None:
+        import tempfile
+
+        tmp = Path(tempfile.mkdtemp(prefix="ocfg-"))
+        self.addCleanup(lambda: __import__("shutil").rmtree(tmp, ignore_errors=True))
+        self.assertEqual(install._norm_path(str(tmp)), install._norm_path(str(tmp.resolve())))
 
     def test_profile_block_roundtrip(self) -> None:
         raw = "export PATH=/usr/bin\n"
