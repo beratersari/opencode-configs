@@ -197,6 +197,88 @@ class ReplaceInstall(unittest.TestCase):
         path = install.split_path((home / ".opencode-path").read_text(encoding="utf-8"))
         self.assertNotIn(str(tools), path)
 
+    def _plant_cli(self, root: Path, payload: bytes = b"NEW") -> Path:
+        path = root / "vendor" / "bin" / install.vendor_bin_tag() / install.binary_name()
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(payload)
+        return path
+
+    def test_vendor_binary_prefers_os_folder(self) -> None:
+        import tempfile
+        import shutil
+
+        tmp = Path(tempfile.mkdtemp(prefix="ocfg-"))
+        self.addCleanup(lambda: shutil.rmtree(tmp, ignore_errors=True))
+        planted = self._plant_cli(tmp, b"OS")
+        (tmp / "vendor" / "bin" / install.binary_name()).write_bytes(b"FLAT")
+        got = install.vendor_binary(tmp)
+        self.assertEqual(got, planted)
+        self.assertEqual(got.read_bytes(), b"OS")
+
+    def test_install_copies_vendored_cli(self) -> None:
+        import tempfile
+        import shutil
+
+        tmp = Path(tempfile.mkdtemp(prefix="ocfg-"))
+        self.addCleanup(lambda: shutil.rmtree(tmp, ignore_errors=True))
+        pack = tmp / "pack"
+        shutil.copytree(ROOT / "agents", pack / "agents")
+        shutil.copytree(ROOT / "skills", pack / "skills")
+        self._plant_cli(pack, b"NEW")
+        home = tmp / "home"
+        install.install(pack, user_home=home)
+        dest = home / ".opencode" / "bin" / install.binary_name()
+        self.assertTrue(dest.is_file())
+        self.assertEqual(dest.read_bytes(), b"NEW")
+
+    def test_install_reuses_backup_cli_when_vendor_missing(self) -> None:
+        import tempfile
+        import shutil
+
+        tmp = Path(tempfile.mkdtemp(prefix="ocfg-"))
+        self.addCleanup(lambda: shutil.rmtree(tmp, ignore_errors=True))
+        pack = tmp / "pack"
+        shutil.copytree(ROOT / "agents", pack / "agents")
+        shutil.copytree(ROOT / "skills", pack / "skills")
+        home = tmp / "home"
+        oc = home / ".opencode"
+        (oc / "bin").mkdir(parents=True)
+        (oc / "bin" / install.binary_name()).write_bytes(b"OLD-BINARY")
+        install.install(pack, user_home=home)
+        dest = home / ".opencode" / "bin" / install.binary_name()
+        self.assertTrue(dest.is_file())
+        self.assertEqual(dest.read_bytes(), b"OLD-BINARY")
+        backups = list(home.glob(".opencode_backup_*"))
+        self.assertEqual(len(backups), 1)
+
+    def test_install_without_vendor_is_configs_only(self) -> None:
+        import tempfile
+        import shutil
+
+        tmp = Path(tempfile.mkdtemp(prefix="ocfg-"))
+        self.addCleanup(lambda: shutil.rmtree(tmp, ignore_errors=True))
+        pack = tmp / "pack"
+        shutil.copytree(ROOT / "agents", pack / "agents")
+        shutil.copytree(ROOT / "skills", pack / "skills")
+        home = tmp / "home"
+        install.install(pack, user_home=home)
+        dest = home / ".opencode" / "bin" / install.binary_name()
+        self.assertFalse(dest.exists())
+        self.assertTrue((home / ".config" / "opencode" / "agents" / "gitlab-reviewer.md").is_file())
+
+    def test_require_binary_fails_without_cli(self) -> None:
+        import tempfile
+        import shutil
+
+        tmp = Path(tempfile.mkdtemp(prefix="ocfg-"))
+        self.addCleanup(lambda: shutil.rmtree(tmp, ignore_errors=True))
+        pack = tmp / "pack"
+        shutil.copytree(ROOT / "agents", pack / "agents")
+        shutil.copytree(ROOT / "skills", pack / "skills")
+        with self.assertRaises(FileNotFoundError) as ctx:
+            install.install(pack, user_home=tmp / "home", require_binary=True)
+        self.assertIn("vendor", str(ctx.exception))
+
 
 if __name__ == "__main__":
     unittest.main()

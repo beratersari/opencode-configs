@@ -68,6 +68,10 @@ jobs:
         id: art
         run: |
           dest=$(python packaging/build_artifact.py --os linux --out-dir dist)
+          test -f "$dest/vendor/bin/linux/opencode"
+          ART_HOME="${RUNNER_TEMP}/oc-from-art"
+          python "$dest/install.py" --root "$dest" --user-home "$ART_HOME" --require-binary
+          test -x "$ART_HOME/.opencode/bin/opencode"
           echo "name=$(basename "$dest")" >> "$GITHUB_OUTPUT"
           echo "dir=$dest" >> "$GITHUB_OUTPUT"
       - uses: actions/upload-artifact@v4
@@ -140,6 +144,11 @@ jobs:
         shell: pwsh
         run: |
           $dest = (python packaging/build_artifact.py --os windows --out-dir dist | Select-Object -Last 1).Trim()
+          $cli = Join-Path $dest "vendor\bin\windows\opencode.exe"
+          if (-not (Test-Path $cli)) { throw "missing $cli" }
+          $artHome = Join-Path $env:RUNNER_TEMP "oc-from-art"
+          python (Join-Path $dest "install.py") --root $dest --user-home $artHome --require-binary
+          if (-not (Test-Path (Join-Path $artHome ".opencode\bin\opencode.exe"))) { throw "CLI missing after artifact install" }
           $name = Split-Path -Leaf $dest
           Add-Content -Path $env:GITHUB_OUTPUT -Value "name=$name"
           Add-Content -Path $env:GITHUB_OUTPUT -Value "dir=$dest"

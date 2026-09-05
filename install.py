@@ -4,12 +4,17 @@
 Renames ~/.opencode to ~/.opencode_backup_YYYYMMDD_HHMMSS (same for
 ~/.config/opencode). Any other OpenCode copy is left in place; its
 directory is dropped from PATH so `opencode` does not resolve there.
+
+If vendor/bin has a CLI (CI artifact or vendor.sh), copy it to
+~/.opencode/bin. If vendor is missing, reuse the binary from the
+newest ~/.opencode_backup_*. Configs-only checkouts skip the CLI.
 """
 
 from __future__ import annotations
 
 import argparse
 import os
+import platform
 import shutil
 import sys
 import time
@@ -528,7 +533,78 @@ def write_files(root: Path, user_home: Path | None = None) -> list[Path]:
     return written
 
 
-def install(root: Path, *, user_home: Path | None = None) -> Path:
+def binary_name() -> str:
+    return "opencode.exe" if os.name == "nt" else "opencode"
+
+
+def vendor_bin_tag() -> str:
+    if os.name == "nt":
+        return "windows"
+    if sys.platform == "darwin":
+        machine = platform.machine().lower()
+        return "darwin-arm64" if machine in {"arm64", "aarch64"} else "darwin-x64"
+    return "linux"
+
+
+def vendor_binary(root: Path) -> Path | None:
+    """Return the packaged CLI for this OS, or None if the pack has none."""
+    vendor_bin = Path(root) / "vendor" / "bin"
+    name = binary_name()
+    candidates = (
+        vendor_bin / vendor_bin_tag() / name,
+        vendor_bin / name,
+    )
+    for path in candidates:
+        if path.is_file():
+            return path
+    return None
+
+
+def latest_backup_binary(user_home: Path | None = None) -> Path | None:
+    base = home(user_home)
+    name = binary_name()
+    backups = sorted(base.glob(".opencode_backup_*"), reverse=True)
+    for backup in backups:
+        candidate = backup / "bin" / name
+        if candidate.is_file():
+            return candidate
+    return None
+
+
+def install_cli_binary(
+    root: Path,
+    *,
+    user_home: Path | None = None,
+    required: bool | None = None,
+) -> Path | None:
+    dest = bin_dir(user_home) / binary_name()
+    src = vendor_binary(root) or latest_backup_binary(user_home)
+    vendor_dir = Path(root) / "vendor" / "bin"
+    if required is None:
+        required = vendor_dir.is_dir()
+    if src is None:
+        if required:
+            raise FileNotFoundError(
+                f"No OpenCode binary under {vendor_dir}. "
+                "Use a CI artifact, or run vendor.bat / vendor.sh "
+                "(python packaging/build_artifact.py --in-place)."
+            )
+        print("[OK] No vendored OpenCode CLI (configs only)")
+        return None
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(src, dest)
+    if os.name != "nt":
+        dest.chmod(dest.stat().st_mode | 0o111)
+    print(f"[OK] Binary installed: {dest}")
+    return dest
+
+
+def install(
+    root: Path,
+    *,
+    user_home: Path | None = None,
+    require_binary: bool | None = None,
+) -> Path:
     root = Path(root).expanduser().resolve()
     list_agent_files(root)
     list_skill_dirs(root)
@@ -539,6 +615,7 @@ def install(root: Path, *, user_home: Path | None = None) -> Path:
     remove_from_path(user_home=user_home, extra_drop=drop_dirs)
     print("Installing this pack…")
     write_files(root, user_home=user_home)
+    install_cli_binary(root, user_home=user_home, required=require_binary)
     prepend_to_path(user_home=user_home)
     dest = config_home(user_home) / "agents" / "gitlab-reviewer.md"
     if not dest.is_file():
@@ -548,18 +625,27 @@ def install(root: Path, *, user_home: Path | None = None) -> Path:
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
-        description="Backup ~/.opencode, unhook other installs from PATH, then install this pack."
+        description="Backup ~/.opencode, unhook other installs from PATH, then install this pack (CLI if vendored)."
     )
     parser.add_argument(
         "--root",
         default=str(Path(__file__).resolve().parent),
-        help="Directory that contains agents/ and skills/",
+        help="Directory that contains agents/, skills/, and optionally vendor/bin",
     )
     parser.add_argument("--user-home", default="", help="Override home (tests / CI)")
+    parser.add_argument(
+        "--require-binary",
+        action="store_true",
+        help="Fail if vendor/bin and the backup home have no OpenCode CLI",
+    )
     args = parser.parse_args(argv)
     user_home = Path(args.user_home).expanduser() if str(args.user_home).strip() else None
     try:
-        dest = install(Path(args.root), user_home=user_home)
+        dest = install(
+            Path(args.root),
+            user_home=user_home,
+            require_binary=True if args.require_binary else None,
+        )
     except (OSError, RuntimeError) as exc:
         print(f"[ERROR] {exc}", file=sys.stderr)
         return 1

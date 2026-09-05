@@ -63,16 +63,25 @@ stay where they are. That directory is removed from the user PATH so
 `opencode` does not resolve there. Put the old path back if you still
 want that copy. System dirs such as `/usr/local/bin` are not stripped.
 
+A CI artifact (or `vendor.sh`) ships `vendor/bin/<os>/opencode`.
+`install.py` copies that CLI into `~/.opencode/bin`. If vendor is
+missing, it reuses the binary from the newest backup. A git checkout
+without `vendor/` is configs-only.
+
 ```bash
-python install.py --root .
-# or, after unpacking the GitHub Actions artifact:
+# Offline: unpack the GitHub Actions artifact, then:
 install.bat
 ./install.sh
+
+# Online checkout: download the CLI once, then install:
+vendor.bat
+./vendor.sh
+python install.py --root .
 ```
 
 Windows: user PATH in `HKCU\Environment`. Linux: `PATH` plus a marked
-block in `~/.profile`. Creasy's own installer does **not** do this; it
-only adds files.
+block in `~/.profile`. Creasy's `install-opencode` uses the same
+replace rules, then copies its own `vendor/bin` (or this pack's).
 
 ## CI artifacts
 
@@ -81,7 +90,16 @@ Push to `main` uploads folders named
 `opencode-configs-1.18.10-linux` (`OPENCODE_VERSION` in
 `packaging/versions.env`). GitHub wraps each folder as a zip; the
 download is not a zip of a zip. Each artifact has `agents/`,
-`skills/`, and the install scripts.
+`skills/`, the install scripts, and `vendor/bin/<os>/` with the
+OpenCode CLI. Target install does not need network.
+
+On a machine with network you can vendor into a checkout:
+
+```bash
+python packaging/build_artifact.py --in-place
+```
+
+`--skip-binary` stages a configs-only folder (no CLI download).
 
 ## Use in another repo
 
