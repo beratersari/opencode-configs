@@ -8,7 +8,7 @@ compatibility: opencode
 # Git commits
 
 Combined from oh-my-opencode `git-master`. Match the repo’s
-existing `type(scope):` style when present (Creasy:
+existing `type(scope):` style when present (for example
 `feat|fix|refactor|test|docs|chore`).
 
 ## Rules
