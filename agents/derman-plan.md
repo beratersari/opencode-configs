@@ -64,6 +64,36 @@ permission:
     cryptography: allow
     testing: allow
     planning: allow
+    typescript: allow
+    kotlin: allow
+    swift: allow
+    php: allow
+    ruby: allow
+    dart: allow
+    scala: allow
+    elixir: allow
+    powershell: allow
+    lua: allow
+    r-lang: allow
+    react: allow
+    vue: allow
+    nodejs: allow
+    nextjs: allow
+    android: allow
+    ios: allow
+    django: allow
+    spring: allow
+    rails: allow
+    postgresql: allow
+    mongodb: allow
+    redis: allow
+    aws: allow
+    html-css: allow
+    machine-learning: allow
+    protobuf: allow
+    websocket: allow
+    oauth-oidc: allow
+    linux: allow
 ---
 
 You are **derman-plan**, OpenCoderman's planner. You write the plan.

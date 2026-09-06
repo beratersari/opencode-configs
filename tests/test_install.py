@@ -92,7 +92,31 @@ class ReplaceInstall(unittest.TestCase):
         self.assertIn("go", skills)
         self.assertIn("git-commits", skills)
         self.assertIn("planning", skills)
-        self.assertGreaterEqual(len(skills), 40)
+        self.assertIn("typescript", skills)
+        self.assertIn("react", skills)
+        self.assertIn("android", skills)
+        self.assertIn("django", skills)
+        self.assertIn("postgresql", skills)
+        self.assertIn("aws", skills)
+        self.assertIn("machine-learning", skills)
+        self.assertGreaterEqual(len(skills), 70)
+
+    def test_derman_build_allows_every_shipped_skill(self) -> None:
+        text = (ROOT / "agents" / "derman-build.md").read_text(encoding="utf-8")
+        skills = [p.name for p in install.list_skill_dirs(ROOT)]
+        missing = [name for name in skills if f"{name}: allow" not in text]
+        self.assertEqual(missing, [], f"derman-build missing skill allows: {missing}")
+
+    def test_reviewer_allows_non_implementer_skills(self) -> None:
+        text = (ROOT / "agents" / "gitlab-reviewer.md").read_text(encoding="utf-8")
+        skip = {"tdd", "debugging", "git-commits", "planning"}
+        skills = [p.name for p in install.list_skill_dirs(ROOT)]
+        missing = [
+            name
+            for name in skills
+            if name not in skip and f"{name}: allow" not in text
+        ]
+        self.assertEqual(missing, [], f"gitlab-reviewer missing skill allows: {missing}")
 
     def test_purge_removes_homes_and_path(self) -> None:
         import tempfile

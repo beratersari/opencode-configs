@@ -18,31 +18,38 @@ skills/           # -> ~/.opencode/skills/<name>/SKILL.md
 
 ## Skills
 
-C++ is the largest language group. The rest is for any stack.
+General library. C++ is one language group, not the product focus.
+Load the skill that matches the files you touch.
 
-**C++ dialect:** `cpp98` `modern-cpp`
+**Languages:** `python` `javascript` `typescript` `go` `rust`
+`java` `kotlin` `csharp` `swift` `php` `ruby` `dart` `scala`
+`elixir` `shell` `powershell` `lua` `r-lang`
 
-**C++ specialists:** `cpp-memory-safety` `cpp-concurrency`
-`cpp-exceptions` `cpp-templates` `cpp-headers-odr` `cpp-stl`
-`cpp-numerics` `cpp-preprocessor` `cmake-cpp` `cpp-testing`
+**C++ (when the repo is C++):** `cpp98` `modern-cpp`
+`cpp-memory-safety` `cpp-concurrency` `cpp-exceptions`
+`cpp-templates` `cpp-headers-odr` `cpp-stl` `cpp-numerics`
+`cpp-preprocessor` `cmake-cpp` `cpp-testing`
 
-**Other languages:** `python` `javascript` `go` `rust` `java`
-`csharp` `shell`
+**Web / UI:** `html-css` `frontend-ui` `react` `vue` `nodejs`
+`nextjs` `accessibility` `i18n`
 
-**Security:** `secrets` `web-security` `auth` `security-owasp`
-`cryptography`
+**Mobile:** `android` `ios`
 
-**Data / API:** `sql` `rest-api` `graphql` `grpc` `api-compat`
-`caching` `messaging`
+**Frameworks:** `django` `spring` `rails`
 
-**UI:** `frontend-ui` `accessibility` `i18n`
+**Data / API:** `sql` `postgresql` `mongodb` `redis` `rest-api`
+`graphql` `grpc` `protobuf` `websocket` `api-compat` `caching`
+`messaging`
 
-**Infra:** `ci` `docker` `kubernetes` `terraform` `dependencies`
-`networking` `licensing`
+**Security:** `secrets` `web-security` `auth` `oauth-oidc`
+`security-owasp` `cryptography`
 
-**Quality:** `performance` `observability` `privacy-logging`
-`error-handling` `documentation` `testing` `refactoring`
-`root-cause` `verification`
+**Cloud / infra:** `aws` `linux` `ci` `docker` `kubernetes`
+`terraform` `dependencies` `networking` `licensing`
+
+**ML / quality:** `machine-learning` `performance` `observability`
+`privacy-logging` `error-handling` `documentation` `testing`
+`refactoring` `root-cause` `verification`
 
 **Implementer-only** (do not allow on `review`): `tdd` `debugging`
 `git-commits` `planning`
